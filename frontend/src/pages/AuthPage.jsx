@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { BrandLogo } from "../components/BrandLogo";
 import { useAuth } from "../hooks/useAuth";
+import { toast } from "../store/toastStore";
 
 export const AuthPage = ({ onSuccess }) => {
   const [mode, setMode] = useState("login"); // "login" | "register"
@@ -33,8 +34,10 @@ export const AuthPage = ({ onSuccess }) => {
     try {
       if (mode === "login") {
         await login({ email, password });
+        toast.success("Authenticated", "Welcome back to Equitix Intelligence.");
       } else {
         await register({ email, password });
+        toast.success("Workspace Initialized", "Your Equitix analyst account is ready.");
       }
       if (onSuccess) onSuccess();
     } catch {
@@ -43,8 +46,7 @@ export const AuthPage = ({ onSuccess }) => {
   };
 
   const handleGoogleAuth = () => {
-    // Simulated institutional SSO
-    alert("Google OAuth SSO flow will be connected in cloud deployment!");
+    toast.info("Institutional SSO", "Google OAuth SSO gateway will connect on production cloud launch.");
   };
 
   return (

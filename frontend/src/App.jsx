@@ -4,6 +4,8 @@ import { useAuthStore } from "./store/authStore";
 import { AuthPage } from "./pages/AuthPage";
 import { Header } from "./components/Header";
 import { Navigation } from "./components/Navigation";
+import { ToastContainer } from "./components/ToastContainer";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DashboardPage } from "./pages/DashboardPage";
 import { MarketExplorerPage } from "./pages/MarketExplorerPage";
 import { ModelEvaluationPage } from "./pages/ModelEvaluationPage";
@@ -33,14 +35,18 @@ function MainApp() {
         {activeTab === "models" && <ModelEvaluationPage />}
       </main>
       <Navigation />
+      <ToastContainer />
     </div>
   );
 }
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <MainApp />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <MainApp />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
+

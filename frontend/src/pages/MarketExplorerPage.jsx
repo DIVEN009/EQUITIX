@@ -21,6 +21,7 @@ import {
 import { usePortfolios, usePortfolioDetail } from "../hooks/usePortfolios";
 import { StockChart } from "../components/StockChart";
 import { TransactionModal } from "../components/TransactionModal";
+import { toast } from "../store/toastStore";
 
 const TIMEFRAMES = [
   { label: "1W", days: 7 },
@@ -96,12 +97,26 @@ export const MarketExplorerPage = () => {
 
   const toggleWatchlist = (ticker) => {
     setWatchlist((prev) => {
-      const updated = prev.includes(ticker)
-        ? prev.filter((t) => t !== ticker)
-        : [...prev, ticker];
+      const willInclude = !prev.includes(ticker);
+      const updated = willInclude
+        ? [...prev, ticker]
+        : prev.filter((t) => t !== ticker);
       localStorage.setItem("equitix_watchlist", JSON.stringify(updated));
+      if (willInclude) {
+        toast.success("Watchlist Updated", `Added ${ticker} to tracked assets.`);
+      } else {
+        toast.info("Watchlist Updated", `Removed ${ticker} from watchlist.`);
+      }
       return updated;
     });
+  };
+
+  const handleExecuteTx = async (txData) => {
+    await executeTransaction(txData);
+    toast.success(
+      "Order Placed",
+      `${txData.action} ${txData.shares} ${txData.ticker} executed at $${txData.price.toFixed(2)}.`
+    );
   };
 
   const isCurrentInWatchlist = watchlist.includes(selectedTicker);
@@ -490,7 +505,7 @@ export const MarketExplorerPage = () => {
           cashBalance={portfolio?.cash_balance || 0}
           initialTicker={selectedTicker}
           initialAction="BUY"
-          onExecute={executeTransaction}
+          onExecute={handleExecuteTx}
           isExecuting={isExecutingTx}
           error={txError}
         />
