@@ -1,0 +1,11 @@
+{
+  "name": "equitix",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Equitix Institutional Financial Analytics Platform",
+  "scripts": {
+    "dev": "npm --prefix backend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  }
+}
