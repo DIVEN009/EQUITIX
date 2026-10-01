@@ -113,3 +113,19 @@ def test_stock_predictions():
 def test_nonexistent_stock():
     response = client.get("/api/v1/stocks/INVALIDTICKERXYZ999999")
     assert response.status_code == 404
+
+
+def test_stock_benchmarks():
+    response = client.get("/api/v1/stocks/AAPL/benchmarks")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ticker"] == "AAPL"
+    assert data["train_samples"] > 0
+    assert len(data["models"]) >= 2
+    model_names = [m["model_name"] for m in data["models"]]
+    assert "tensorflow_lstm" in model_names
+    assert "baseline_linear_regression" in model_names
+    for m in data["models"]:
+        assert m["rmse"] > 0
+        assert m["directional_accuracy_pct"] > 0
+

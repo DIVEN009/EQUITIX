@@ -4,6 +4,7 @@ import {
   fetchStockHistoryApi,
   searchStocksApi,
   fetchStockPredictionsApi,
+  fetchStockBenchmarksApi,
 } from "../api/stocks";
 
 /**
@@ -71,3 +72,20 @@ export const useStockPredictions = (ticker) => {
     retry: 1,
   });
 };
+
+/**
+ * Hook to retrieve validation benchmarks and training metrics for a ticker.
+ * @param {string} ticker
+ */
+export const useStockBenchmarks = (ticker) => {
+  const normalizedTicker = ticker?.toUpperCase()?.trim();
+
+  return useQuery({
+    queryKey: ["stockBenchmarks", normalizedTicker],
+    queryFn: () => fetchStockBenchmarksApi(normalizedTicker),
+    enabled: Boolean(normalizedTicker),
+    staleTime: 1000 * 60 * 30, // 30 minutes cache
+    retry: 1,
+  });
+};
+

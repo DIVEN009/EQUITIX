@@ -9,6 +9,7 @@ from src.schemas.stock_schema import (
     StockHistoryResponse,
     StockPredictionsResponse,
     StockSearchItem,
+    StockBenchmarksResponse,
 )
 from src.services.stock_service import stock_service
 
@@ -88,3 +89,17 @@ def get_stock_predictions(
     db: Session = Depends(get_db),
 ) -> StockPredictionsResponse:
     return stock_service.get_stock_predictions(ticker=ticker, db=db)
+
+
+@router.get(
+    "/{ticker}/benchmarks",
+    response_model=StockBenchmarksResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get model validation benchmarks",
+    description="Retrieve test set evaluation metrics (RMSE, Directional Accuracy) and model training parameters.",
+)
+def get_stock_benchmarks(
+    ticker: str,
+) -> StockBenchmarksResponse:
+    return stock_service.get_stock_benchmarks(ticker=ticker)
+

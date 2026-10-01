@@ -45,3 +45,14 @@ export const fetchStockPredictionsApi = async (ticker) => {
   const response = await apiClient.get(`/stocks/${ticker.toUpperCase()}/predictions`);
   return response.data;
 };
+
+/**
+ * Fetch ML model validation benchmarks (RMSE, Directional Accuracy, sample sizes).
+ * @param {string} ticker - e.g. "AAPL"
+ */
+export const fetchStockBenchmarksApi = async (ticker) => {
+  if (!ticker) throw new Error("Ticker is required");
+  const response = await apiClient.get(`/stocks/${ticker.toUpperCase()}/benchmarks`);
+  return response.data;
+};
+
