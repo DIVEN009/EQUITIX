@@ -15,6 +15,7 @@ import { usePortfolios, usePortfolioDetail } from "../hooks/usePortfolios";
 import { TransactionModal } from "../components/TransactionModal";
 import { CreatePortfolioModal } from "../components/CreatePortfolioModal";
 import { toast } from "../store/toastStore";
+import { formatRupee } from "../utils/currency";
 
 export const DashboardPage = () => {
   const { portfolios, isLoadingPortfolios, createPortfolio, isCreatingPortfolio, deletePortfolio, isDeletingPortfolio } =
@@ -51,7 +52,7 @@ export const DashboardPage = () => {
     await executeTransaction(txData);
     toast.success(
       "Order Executed",
-      `${txData.action} ${txData.shares} ${txData.ticker} executed at $${txData.price.toFixed(2)}.`
+      `${txData.action} ${txData.shares} ${txData.ticker} executed at ${formatRupee(txData.price)}.`
     );
   };
 
@@ -76,7 +77,7 @@ export const DashboardPage = () => {
         <div>
           <h2 className="text-xl font-bold text-white">Create Your First Portfolio</h2>
           <p className="text-xs text-brand-textMuted mt-1 max-w-xs mx-auto">
-            Allocate virtual paper cash to simulate quantitative holdings, test time-series predictions, and track alpha.
+            Allocate virtual paper cash in Rupees (₹) to simulate quantitative holdings, test time-series predictions, and track alpha.
           </p>
         </div>
         <button
@@ -94,7 +95,7 @@ export const DashboardPage = () => {
             const newP = await createPortfolio(data);
             if (newP?.id) {
               setSelectedPortfolioId(newP.id);
-              toast.success("Portfolio Initialized", `Created "${newP.name}" with $${Number(newP.cash_balance).toLocaleString()} capital.`);
+              toast.success("Portfolio Initialized", `Created "${newP.name}" with ${formatRupee(newP.cash_balance, 0)} capital.`);
             }
           }}
           isCreating={isCreatingPortfolio}
@@ -125,7 +126,7 @@ export const DashboardPage = () => {
           >
             {portfolios.map((p) => (
               <option key={p.id} value={p.id} className="bg-brand-surface text-white">
-                {p.name} (${Number(p.cash_balance).toLocaleString()})
+                {p.name} ({formatRupee(p.cash_balance, 0)})
               </option>
             ))}
           </select>
@@ -168,7 +169,7 @@ export const DashboardPage = () => {
 
         {/* Large Total Value Display */}
         <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1 font-mono">
-          ${totalVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {formatRupee(totalVal)}
         </div>
 
         {/* P&L Metrics row */}
@@ -181,14 +182,14 @@ export const DashboardPage = () => {
             {isPositivePnl ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
             <span>
               {isPositivePnl ? "+" : ""}
-              ${(portfolio?.total_unrealized_pnl || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })} (
+              {formatRupee(portfolio?.total_unrealized_pnl || 0)} (
               {portfolio?.total_unrealized_pnl_percent || 0}%)
             </span>
           </div>
           <span className="text-brand-textMuted text-[11px]">Unrealized P&L</span>
 
           <span className="text-[11px] text-brand-textSecondary ml-auto font-mono">
-            Cash: ${cashVal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            Cash: {formatRupee(cashVal)}
           </span>
         </div>
 
@@ -213,11 +214,11 @@ export const DashboardPage = () => {
           <div className="flex gap-4 mt-2 text-[10px] text-brand-textMuted font-mono">
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald" />
-              Equities {equitiesPct}% (${holdingsVal.toLocaleString("en-US", { minimumFractionDigits: 0 })})
+              Equities {equitiesPct}% ({formatRupee(holdingsVal, 0)})
             </span>
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
-              Cash {cashPct}% (${cashVal.toLocaleString("en-US", { minimumFractionDigits: 0 })})
+              Cash {cashPct}% ({formatRupee(cashVal, 0)})
             </span>
           </div>
         </div>
@@ -281,13 +282,13 @@ export const DashboardPage = () => {
                       <span className="text-[11px] text-brand-textMuted max-w-[120px] truncate">{h.company_name}</span>
                     </div>
                     <div className="text-[11px] text-brand-textSecondary mt-1 font-mono">
-                      {h.shares} Shares <span className="text-brand-textMuted">• Avg ${h.average_price.toFixed(2)}</span>
+                      {h.shares} Shares <span className="text-brand-textMuted">• Avg {formatRupee(h.average_price)}</span>
                     </div>
                   </div>
 
                   <div className="text-right">
                     <div className="text-sm font-bold text-white font-mono">
-                      ${h.current_value.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {formatRupee(h.current_value)}
                     </div>
                     <div
                       className={`text-[11px] font-bold flex items-center justify-end gap-0.5 mt-0.5 ${
@@ -297,7 +298,7 @@ export const DashboardPage = () => {
                       {isGain ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                       <span>
                         {isGain ? "+" : ""}
-                        ${h.unrealized_pnl.toFixed(2)} ({h.unrealized_pnl_percent.toFixed(2)}%)
+                        {formatRupee(h.unrealized_pnl)} ({h.unrealized_pnl_percent.toFixed(2)}%)
                       </span>
                     </div>
                     {/* Action buttons */}
@@ -344,7 +345,7 @@ export const DashboardPage = () => {
           const newP = await createPortfolio(data);
           if (newP?.id) {
             setSelectedPortfolioId(newP.id);
-            toast.success("Portfolio Initialized", `Created "${newP.name}" with $${Number(newP.cash_balance).toLocaleString()} capital.`);
+            toast.success("Portfolio Initialized", `Created "${newP.name}" with ${formatRupee(newP.cash_balance, 0)} capital.`);
           }
         }}
         isCreating={isCreatingPortfolio}

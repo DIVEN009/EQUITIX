@@ -22,6 +22,7 @@ import { usePortfolios, usePortfolioDetail } from "../hooks/usePortfolios";
 import { StockChart } from "../components/StockChart";
 import { TransactionModal } from "../components/TransactionModal";
 import { toast } from "../store/toastStore";
+import { formatRupee } from "../utils/currency";
 
 const TIMEFRAMES = [
   { label: "1W", days: 7 },
@@ -32,7 +33,16 @@ const TIMEFRAMES = [
   { label: "5Y", days: 1825 },
 ];
 
-const POPULAR_TICKERS = ["AAPL", "NVDA", "MSFT", "TSLA", "AMZN", "GOOGL", "META"];
+const POPULAR_TICKERS = [
+  "RELIANCE.NS",
+  "TCS.NS",
+  "INFY.NS",
+  "TATAMOTORS.NS",
+  "HDFCBANK.NS",
+  "AAPL",
+  "NVDA",
+  "TSLA",
+];
 
 export const MarketExplorerPage = () => {
   const { selectedTicker, setSelectedTicker, setActiveTab } = useAuthStore();
@@ -42,9 +52,9 @@ export const MarketExplorerPage = () => {
   const [watchlist, setWatchlist] = useState(() => {
     try {
       const stored = localStorage.getItem("equitix_watchlist");
-      return stored ? JSON.parse(stored) : ["AAPL", "NVDA", "TSLA"];
+      return stored ? JSON.parse(stored) : ["RELIANCE.NS", "TCS.NS", "AAPL"];
     } catch {
-      return ["AAPL", "NVDA", "TSLA"];
+      return ["RELIANCE.NS", "TCS.NS", "AAPL"];
     }
   });
 
@@ -115,7 +125,7 @@ export const MarketExplorerPage = () => {
     await executeTransaction(txData);
     toast.success(
       "Order Placed",
-      `${txData.action} ${txData.shares} ${txData.ticker} executed at $${txData.price.toFixed(2)}.`
+      `${txData.action} ${txData.shares} ${txData.ticker} executed at ${formatRupee(txData.price)}.`
     );
   };
 
@@ -264,7 +274,7 @@ export const MarketExplorerPage = () => {
 
             <div className="flex items-baseline gap-3 mt-1.5">
               <span className="text-3xl font-black text-white tracking-tight">
-                ${currentPrice ? currentPrice.toFixed(2) : "---"}
+                {currentPrice ? formatRupee(currentPrice) : "---"}
               </span>
               <div
                 className={`flex items-center gap-1 text-xs font-bold ${
@@ -278,7 +288,7 @@ export const MarketExplorerPage = () => {
                 )}
                 <span>
                   {isUp ? "+" : ""}
-                  ${change.toFixed(2)} ({isUp ? "+" : ""}
+                  {formatRupee(change)} ({isUp ? "+" : ""}
                   {changePercent.toFixed(2)}%)
                 </span>
               </div>
@@ -378,7 +388,7 @@ export const MarketExplorerPage = () => {
 
               <div className="text-right">
                 <span className="text-xs font-bold text-white">
-                  Target: ${mlForecast.targetPrice.toFixed(2)}
+                  Target: {formatRupee(mlForecast.targetPrice)}
                 </span>
                 <span
                   className={`text-[10px] font-semibold ml-1.5 ${
@@ -405,7 +415,7 @@ export const MarketExplorerPage = () => {
               52W Range
             </span>
             <div className="font-bold text-white text-xs mt-1">
-              ${stats.low52.toFixed(2)} - ${stats.high52.toFixed(2)}
+              {formatRupee(stats.low52)} - {formatRupee(stats.high52)}
             </div>
           </div>
 
@@ -432,7 +442,7 @@ export const MarketExplorerPage = () => {
               Prev Close
             </span>
             <div className="font-bold text-white text-xs mt-1">
-              ${quote?.previous_close ? quote.previous_close.toFixed(2) : "---"}
+              {quote?.previous_close ? formatRupee(quote.previous_close) : "---"}
             </div>
           </div>
         </div>

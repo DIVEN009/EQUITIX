@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { X, ArrowDownRight, ArrowUpRight, Loader2, AlertCircle } from "lucide-react";
+import { formatRupee } from "../utils/currency";
 
 export const TransactionModal = ({
   isOpen,
   onClose,
   portfolioId,
   cashBalance = 0,
-  initialTicker = "AAPL",
+  initialTicker = "RELIANCE.NS",
   initialAction = "BUY",
   onExecute,
   isExecuting,
@@ -15,7 +16,7 @@ export const TransactionModal = ({
   const [ticker, setTicker] = useState(initialTicker);
   const [action, setAction] = useState(initialAction);
   const [shares, setShares] = useState("10");
-  const [price, setPrice] = useState("190.00");
+  const [price, setPrice] = useState("1200.00");
   const [localError, setLocalError] = useState("");
 
   if (!isOpen) return null;
@@ -40,12 +41,12 @@ export const TransactionModal = ({
     }
 
     if (isNaN(priceNum) || priceNum <= 0) {
-      setLocalError("Execution price must be a positive dollar amount.");
+      setLocalError("Execution price must be a positive rupee amount.");
       return;
     }
 
     if (action === "BUY" && totalValue > cashBalance) {
-      setLocalError(`Insufficient funds: Portfolio cash is $${cashBalance.toFixed(2)}, transaction requires $${totalValue.toFixed(2)}`);
+      setLocalError(`Insufficient funds: Portfolio cash is ${formatRupee(cashBalance)}, transaction requires ${formatRupee(totalValue)}`);
       return;
     }
 
@@ -83,7 +84,7 @@ export const TransactionModal = ({
         {/* Available Cash banner */}
         <div className="my-4 p-3 rounded-2xl bg-brand-surface border border-white/5 flex items-center justify-between text-xs">
           <span className="text-brand-textSecondary">Available Portfolio Cash</span>
-          <span className="font-mono font-bold text-brand-emerald">${cashBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+          <span className="font-mono font-bold text-brand-emerald">{formatRupee(cashBalance)}</span>
         </div>
 
         {/* Error message */}
@@ -144,7 +145,7 @@ export const TransactionModal = ({
                 className="w-full bg-brand-surface border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white font-mono uppercase focus:outline-none focus:border-brand-emerald"
               />
               {/* Quick ticker buttons */}
-              {["AAPL", "NVDA", "TSLA"].map((t) => (
+              {["RELIANCE.NS", "TCS.NS", "INFY.NS", "AAPL"].map((t) => (
                 <button
                   type="button"
                   key={t}
@@ -176,7 +177,7 @@ export const TransactionModal = ({
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                Execution Price ($)
+                Execution Price (₹)
               </label>
               <input
                 type="number"
@@ -185,7 +186,7 @@ export const TransactionModal = ({
                 required
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder="190.00"
+                placeholder="1200.00"
                 className="w-full bg-brand-surface border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white font-mono focus:outline-none focus:border-brand-emerald"
               />
             </div>
@@ -195,7 +196,7 @@ export const TransactionModal = ({
           <div className="p-3 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between text-xs">
             <span className="text-brand-textMuted font-medium">Estimated Order Total</span>
             <span className="text-base font-bold text-white font-mono">
-              ${totalValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatRupee(totalValue)}
             </span>
           </div>
 

@@ -16,6 +16,20 @@ from src.services.stock_service import stock_service
 router = APIRouter()
 
 
+POPULAR_INDIAN_STOCKS = [
+    {"ticker": "RELIANCE.NS", "company_name": "Reliance Industries Ltd", "sector": "Energy"},
+    {"ticker": "TCS.NS", "company_name": "Tata Consultancy Services", "sector": "Technology"},
+    {"ticker": "INFY.NS", "company_name": "Infosys Ltd", "sector": "Technology"},
+    {"ticker": "HDFCBANK.NS", "company_name": "HDFC Bank Ltd", "sector": "Financial Services"},
+    {"ticker": "TATAMOTORS.NS", "company_name": "Tata Motors Ltd", "sector": "Automotive"},
+    {"ticker": "SBIN.NS", "company_name": "State Bank of India", "sector": "Financial Services"},
+    {"ticker": "ICICIBANK.NS", "company_name": "ICICI Bank Ltd", "sector": "Financial Services"},
+    {"ticker": "WIPRO.NS", "company_name": "Wipro Ltd", "sector": "Technology"},
+    {"ticker": "ITC.NS", "company_name": "ITC Ltd", "sector": "Consumer Goods"},
+    {"ticker": "BHARTIARTL.NS", "company_name": "Bharti Airtel Ltd", "sector": "Telecom"},
+]
+
+
 @router.get(
     "/search",
     response_model=List[StockSearchItem],
@@ -28,7 +42,27 @@ def search_stocks(
     db: Session = Depends(get_db),
 ) -> List[StockSearchItem]:
     stocks = stock_repository.search_stocks(db, query=q)
-    return [StockSearchItem.model_validate(s) for s in stocks]
+    results = [StockSearchItem.model_validate(s) for s in stocks]
+    existing_tickers = {r.ticker for r in results}
+
+    # Match seeded Indian stocks
+    query_lower = q.lower().strip()
+    for s in POPULAR_INDIAN_STOCKS:
+        if s["ticker"] not in existing_tickers:
+            if (
+                query_lower in s["ticker"].lower()
+                or query_lower in s["company_name"].lower()
+                or query_lower in s["ticker"].split(".")[0].lower()
+            ):
+                results.append(StockSearchItem(**s))
+                # Auto-seed in background DB
+                stock_repository.upsert_stock(
+                    db=db,
+                    ticker=s["ticker"],
+                    company_name=s["company_name"],
+                    sector=s["sector"],
+                )
+    return results
 
 
 @router.get(

@@ -62,7 +62,19 @@ class StockService:
 
             history_df = yf_ticker.history(period=period)
             if history_df.empty:
-                return None
+                # Auto-resolve Indian National Stock Exchange (NSE) tickers (e.g. RELIANCE -> RELIANCE.NS)
+                if not (ticker_clean.endswith(".NS") or ticker_clean.endswith(".BO")):
+                    indian_ticker = f"{ticker_clean}.NS"
+                    yf_indian = yf.Ticker(indian_ticker)
+                    hist_indian = yf_indian.history(period=period)
+                    if not hist_indian.empty:
+                        ticker_clean = indian_ticker
+                        yf_ticker = yf_indian
+                        history_df = hist_indian
+                    else:
+                        return None
+                else:
+                    return None
 
             # Fast info or fallback info
             fast_info = getattr(yf_ticker, "fast_info", None)

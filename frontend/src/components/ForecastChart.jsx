@@ -17,6 +17,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
+import { formatRupee } from "../utils/currency";
 
 /**
  * Format date string into human friendly format
@@ -67,7 +68,7 @@ const ForecastTooltip = ({ active, payload }) => {
               Actual Close:
             </span>
             <span className="font-bold text-white text-xs">
-              ${data.actual.toFixed(2)}
+              {formatRupee(data.actual)}
             </span>
           </div>
         )}
@@ -80,7 +81,7 @@ const ForecastTooltip = ({ active, payload }) => {
               Deep LSTM:
             </span>
             <span className="font-black text-brand-emerald text-xs">
-              ${data.lstm.toFixed(2)}
+              {formatRupee(data.lstm)}
             </span>
           </div>
         )}
@@ -93,7 +94,7 @@ const ForecastTooltip = ({ active, payload }) => {
               Baseline Linear:
             </span>
             <span className="font-bold text-brand-cyan text-xs">
-              ${data.baseline.toFixed(2)}
+              {formatRupee(data.baseline)}
             </span>
           </div>
         )}
@@ -103,7 +104,7 @@ const ForecastTooltip = ({ active, payload }) => {
           <div className="pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px]">
             <span className="text-brand-textMuted">Model Divergence:</span>
             <span className="font-semibold text-white">
-              ${Math.abs(data.lstm - data.baseline).toFixed(2)} (
+              {formatRupee(Math.abs(data.lstm - data.baseline))} (
               {((Math.abs(data.lstm - data.baseline) / data.baseline) * 100).toFixed(2)}%)
             </span>
           </div>
@@ -333,7 +334,7 @@ export const ForecastChart = ({
               fontSize={10}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => `$${v}`}
+              tickFormatter={(v) => `₹${v}`}
               orientation="left"
             />
 

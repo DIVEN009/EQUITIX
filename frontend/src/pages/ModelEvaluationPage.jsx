@@ -16,8 +16,18 @@ import {
   useStockBenchmarks,
 } from "../hooks/useStocks";
 import { ForecastChart } from "../components/ForecastChart";
+import { formatRupee } from "../utils/currency";
 
-const POPULAR_TICKERS = ["AAPL", "NVDA", "MSFT", "TSLA", "AMZN", "GOOGL", "META"];
+const POPULAR_TICKERS = [
+  "RELIANCE.NS",
+  "TCS.NS",
+  "INFY.NS",
+  "TATAMOTORS.NS",
+  "HDFCBANK.NS",
+  "AAPL",
+  "NVDA",
+  "MSFT",
+];
 
 export const ModelEvaluationPage = () => {
   const { selectedTicker, setSelectedTicker } = useAuthStore();
@@ -216,7 +226,7 @@ export const ModelEvaluationPage = () => {
               Current Reference Anchor
             </div>
             <div className="text-base font-extrabold text-white mt-0.5 flex items-baseline gap-2">
-              <span>${currentPrice ? currentPrice.toFixed(2) : "---"}</span>
+              <span>{currentPrice ? formatRupee(currentPrice) : "---"}</span>
               {quote?.change !== undefined && (
                 <span
                   className={`text-xs font-bold ${
@@ -224,7 +234,7 @@ export const ModelEvaluationPage = () => {
                   }`}
                 >
                   {quote.change >= 0 ? "+" : ""}
-                  {quote.change.toFixed(2)} ({quote.change >= 0 ? "+" : ""}
+                  {formatRupee(quote.change)} ({quote.change >= 0 ? "+" : ""}
                   {quote.change_percent?.toFixed(2)}%)
                 </span>
               )}
@@ -267,7 +277,7 @@ export const ModelEvaluationPage = () => {
               </h3>
             </div>
             <span className="text-[10px] text-brand-textMuted font-mono">
-              Anchor: ${currentPrice ? currentPrice.toFixed(2) : "---"}
+              Anchor: {currentPrice ? formatRupee(currentPrice) : "---"}
             </span>
           </div>
 
@@ -289,7 +299,7 @@ export const ModelEvaluationPage = () => {
                     <td className="py-2.5 text-brand-textSecondary">{row.date}</td>
                     <td className="py-2.5">
                       <div className="font-bold text-white">
-                        ${row.lstmPrice ? row.lstmPrice.toFixed(2) : "---"}
+                        {row.lstmPrice ? formatRupee(row.lstmPrice) : "---"}
                       </div>
                       <span
                         className={`text-[10px] font-semibold ${
@@ -302,7 +312,7 @@ export const ModelEvaluationPage = () => {
                     </td>
                     <td className="py-2.5">
                       <div className="font-semibold text-slate-200">
-                        ${row.basePrice ? row.basePrice.toFixed(2) : "---"}
+                        {row.basePrice ? formatRupee(row.basePrice) : "---"}
                       </div>
                       <span
                         className={`text-[10px] ${
@@ -314,7 +324,7 @@ export const ModelEvaluationPage = () => {
                       </span>
                     </td>
                     <td className="py-2.5 text-right font-mono text-[11px] text-brand-textSecondary">
-                      ${Math.abs(row.divergence).toFixed(2)}
+                      {formatRupee(Math.abs(row.divergence))}
                     </td>
                   </tr>
                 ))}
@@ -359,7 +369,7 @@ export const ModelEvaluationPage = () => {
                   Root Mean Sq. Error
                 </div>
                 <div className="text-xl font-black text-white mt-0.5">
-                  ${lstmBench.rmse.toFixed(2)}{" "}
+                  {formatRupee(lstmBench.rmse)}{" "}
                   <span className="text-[10px] font-normal text-brand-textMuted">RMSE</span>
                 </div>
                 <span className="text-[10px] text-brand-emerald font-semibold block mt-0.5">
@@ -406,7 +416,7 @@ export const ModelEvaluationPage = () => {
                   Root Mean Sq. Error
                 </div>
                 <div className="text-xl font-black text-white mt-0.5">
-                  ${baselineBench.rmse.toFixed(2)}{" "}
+                  {formatRupee(baselineBench.rmse)}{" "}
                   <span className="text-[10px] font-normal text-brand-textMuted">RMSE</span>
                 </div>
                 <span className="text-[10px] text-brand-textMuted font-semibold block mt-0.5">

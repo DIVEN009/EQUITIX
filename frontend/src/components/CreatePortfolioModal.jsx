@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { X, Briefcase, DollarSign, Loader2, AlertCircle } from "lucide-react";
+import { X, Briefcase, Loader2, AlertCircle } from "lucide-react";
+import { formatRupee } from "../utils/currency";
 
 export const CreatePortfolioModal = ({ isOpen, onClose, onCreate, isCreating }) => {
   const [name, setName] = useState("Alpha Quantitative Fund");
@@ -76,30 +77,32 @@ export const CreatePortfolioModal = ({ isOpen, onClose, onCreate, isCreating }) 
 
           <div>
             <label className="block text-[11px] font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-              Initial Virtual Cash ($)
+              Initial Virtual Cash (₹)
             </label>
             <div className="relative">
-              <DollarSign className="w-4 h-4 text-brand-textMuted absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <span className="font-bold text-brand-textMuted absolute left-3.5 top-1/2 -translate-y-1/2 text-sm">
+                ₹
+              </span>
               <input
                 type="number"
-                step="1000"
+                step="5000"
                 min="0"
                 required
                 value={initialCash}
                 onChange={(e) => setInitialCash(e.target.value)}
-                placeholder="50000"
+                placeholder="100000"
                 className="w-full bg-brand-surface border border-white/10 rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-brand-emerald"
               />
             </div>
             <div className="flex gap-2 mt-2">
-              {["10000", "50000", "100000", "250000"].map((c) => (
+              {["50000", "100000", "500000", "1000000"].map((c) => (
                 <button
                   type="button"
                   key={c}
                   onClick={() => setInitialCash(c)}
                   className="px-2.5 py-1 text-[11px] rounded-lg bg-brand-surface border border-white/10 hover:border-brand-emerald/40 text-brand-textSecondary hover:text-white"
                 >
-                  ${Number(c).toLocaleString()}
+                  {formatRupee(Number(c), 0)}
                 </button>
               ))}
             </div>

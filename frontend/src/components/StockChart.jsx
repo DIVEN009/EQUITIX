@@ -17,6 +17,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
+import { formatRupee } from "../utils/currency";
 
 /**
  * Format raw numbers into compact readable volumes (e.g. 42.5M, 1.2B)
@@ -94,7 +95,7 @@ const CustomTooltip = ({ active, payload }) => {
             Closing Price
           </div>
           <div className="text-lg font-black text-white">
-            ${data.close?.toFixed(2)}
+            {formatRupee(data.close)}
           </div>
           <div
             className={`text-[11px] font-semibold flex items-center gap-1 mt-0.5 ${
@@ -108,7 +109,7 @@ const CustomTooltip = ({ active, payload }) => {
             )}
             <span>
               {isBullish ? "+" : ""}
-              ${dayChange.toFixed(2)} ({isBullish ? "+" : ""}
+              {formatRupee(dayChange)} ({isBullish ? "+" : ""}
               {dayChangePct.toFixed(2)}%)
             </span>
           </div>
@@ -118,19 +119,19 @@ const CustomTooltip = ({ active, payload }) => {
           <div>
             <span className="text-brand-textMuted">Open: </span>
             <span className="font-semibold text-white">
-              ${data.open?.toFixed(2)}
+              {formatRupee(data.open)}
             </span>
           </div>
           <div>
             <span className="text-brand-textMuted">High: </span>
             <span className="font-semibold text-brand-emerald">
-              ${data.high?.toFixed(2)}
+              {formatRupee(data.high)}
             </span>
           </div>
           <div>
             <span className="text-brand-textMuted">Low: </span>
             <span className="font-semibold text-brand-red">
-              ${data.low?.toFixed(2)}
+              {formatRupee(data.low)}
             </span>
           </div>
           <div>
@@ -326,7 +327,7 @@ export const StockChart = ({
               <TrendingDown className="w-3.5 h-3.5" />
             )}
             {isPositive ? "+" : ""}
-            ${periodChange.toFixed(2)} ({isPositive ? "+" : ""}
+            {formatRupee(periodChange)} ({isPositive ? "+" : ""}
             {periodChangePercent.toFixed(2)}%)
           </span>
         </div>
@@ -404,7 +405,7 @@ export const StockChart = ({
               fontSize={10}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => `$${v}`}
+              tickFormatter={(v) => `₹${v}`}
               orientation="left"
             />
 
