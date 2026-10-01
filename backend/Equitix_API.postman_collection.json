@@ -1,0 +1,390 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "name": "Equitix Financial Analytics API",
+    "description": "Production-grade, institutional quantitative analyst financial analytics & stock prediction API. Features time-series ML (LSTM vs Baseline), portfolio tracking with real-time P&L analytics, and yfinance market data with 1.5s timeout & DB fallback caching.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "bearerToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "portfolioId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & System",
+      "item": [
+        {
+          "name": "Root Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            }
+          }
+        },
+        {
+          "name": "System Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access_token) {",
+                  "    pm.collectionVariables.set('bearerToken', jsonData.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"quant.analyst@equitix.internal\",\n  \"password\": \"QuantAlphaPass2026!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login (JSON)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access_token) {",
+                  "    pm.collectionVariables.set('bearerToken', jsonData.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"quant.analyst@equitix.internal\",\n  \"password\": \"QuantAlphaPass2026!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login (OAuth2 Password Form - Swagger UI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "quant.analyst@equitix.internal",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "QuantAlphaPass2026!",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "token"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stocks & Market Data",
+      "item": [
+        {
+          "name": "Search Stocks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stocks/search?q=AAP",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stocks", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "AAP"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Stock Quote (1.5s Timeout & DB Fallback)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stocks/AAPL",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stocks", "AAPL"]
+            }
+          }
+        },
+        {
+          "name": "Get Stock History (Candlestick OHLCV)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stocks/AAPL/history?days=365",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stocks", "AAPL", "history"],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "365"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get 7-Day ML Predictions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stocks/AAPL/predictions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stocks", "AAPL", "predictions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Portfolios & P&L",
+      "item": [
+        {
+          "name": "List User Portfolios",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portfolios",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "portfolios"]
+            }
+          }
+        },
+        {
+          "name": "Create Portfolio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) {",
+                  "    pm.collectionVariables.set('portfolioId', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Quantitative Growth Fund\",\n  \"initial_cash\": 100000.0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portfolios",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "portfolios"]
+            }
+          }
+        },
+        {
+          "name": "Get Portfolio Details & P&L",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portfolios/{{portfolioId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "portfolios", "{{portfolioId}}"]
+            }
+          }
+        },
+        {
+          "name": "Execute BUY Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticker\": \"AAPL\",\n  \"action\": \"BUY\",\n  \"shares\": 25,\n  \"price\": 180.50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portfolios/{{portfolioId}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "portfolios", "{{portfolioId}}", "transactions"]
+            }
+          }
+        },
+        {
+          "name": "Execute SELL Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticker\": \"AAPL\",\n  \"action\": \"SELL\",\n  \"shares\": 10,\n  \"price\": 195.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portfolios/{{portfolioId}}/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "portfolios", "{{portfolioId}}", "transactions"]
+            }
+          }
+        },
+        {
+          "name": "Delete Portfolio",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portfolios/{{portfolioId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "portfolios", "{{portfolioId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
