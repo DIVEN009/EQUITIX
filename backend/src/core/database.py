@@ -1,19 +1,17 @@
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from dotenv import load_dotenv
-
-load_dotenv()
-
-DATABASE_URL = os.getenv("DATABASE_URL")
+from src.core.config import settings
 
 # Create the SQLAlchemy Engine
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    settings.DATABASE_URL,
+    pool_pre_ping=True,  # Checks connection liveness before executing queries
+)
 
 # Create a SessionLocal class for database sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base class for our models to inherit from
+# Base class for models to inherit from
 Base = declarative_base()
 
 # Dependency to get the DB session in FastAPI routes
