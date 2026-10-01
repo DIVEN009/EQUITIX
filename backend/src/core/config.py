@@ -1,6 +1,10 @@
+import os
 from typing import List, Union
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DEFAULT_ENV_FILE = os.path.join(BACKEND_DIR, ".env")
 
 
 class Settings(BaseSettings):
@@ -25,9 +29,9 @@ class Settings(BaseSettings):
     ]
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[".env", DEFAULT_ENV_FILE],
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
     )
 
 
