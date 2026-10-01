@@ -1,0 +1,41 @@
+services:
+  # ==========================================
+  # Equitix FastAPI Backend Web Service
+  # ==========================================
+  - type: web
+    name: equitix-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 10080
+      - key: BACKEND_CORS_ORIGINS
+        value: '["https://equitix.vercel.app","http://localhost:5173"]'
+
+  # ==========================================
+  # Equitix Vite React Frontend Static Site
+  # ==========================================
+  - type: web
+    name: equitix-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false
