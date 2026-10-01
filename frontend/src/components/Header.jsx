@@ -1,5 +1,5 @@
 import React from "react";
-import { LogOut, User, Activity } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { BrandLogo } from "./BrandLogo";
 import { useAuthStore } from "../store/authStore";
 
