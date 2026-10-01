@@ -15,6 +15,13 @@ from src.schemas.stock_schema import (
     PredictionItem,
     StockPredictionsResponse,
 )
+from src.schemas.portfolio_schema import (
+    PortfolioCreate,
+    TransactionCreate,
+    HoldingResponse,
+    PortfolioListItem,
+    PortfolioSummaryResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -30,4 +37,9 @@ __all__ = [
     "StockHistoryResponse",
     "PredictionItem",
     "StockPredictionsResponse",
+    "PortfolioCreate",
+    "TransactionCreate",
+    "HoldingResponse",
+    "PortfolioListItem",
+    "PortfolioSummaryResponse",
 ]
