@@ -1,40 +1,96 @@
-/**
- * Equitix Currency Utilities for Indian Rupees (₹)
- */
+import { useSettingsStore, SUPPORTED_CURRENCIES } from "../store/settingsStore";
+
+export { SUPPORTED_CURRENCIES };
 
 /**
- * Format numeric value in Indian Rupees (₹) with en-IN comma separation.
- * Example: 154200.5 -> "₹1,54,200.50"
+ * Format numeric value in the active user currency with proper locale comma grouping.
+ * @param {number|string} val
+ * @param {number} decimals
+ * @param {string|null} currencyCode - Optional override (INR, USD, EUR, GBP)
  */
-export const formatRupee = (val, decimals = 2) => {
-  if (val === null || val === undefined || isNaN(Number(val))) return "₹0.00";
+export const formatCurrency = (val, decimals = 2, currencyCode = null) => {
+  if (val === null || val === undefined || isNaN(Number(val))) {
+    const code = currencyCode || useSettingsStore.getState().currency || "INR";
+    const symbol = SUPPORTED_CURRENCIES[code]?.symbol || "₹";
+    return `${symbol}0.00`;
+  }
+
+  const code = currencyCode || useSettingsStore.getState().currency || "INR";
+  const config = SUPPORTED_CURRENCIES[code] || SUPPORTED_CURRENCIES.INR;
   const num = Number(val);
-  return `₹${num.toLocaleString("en-IN", {
+
+  return `${config.symbol}${num.toLocaleString(config.locale, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   })}`;
 };
 
 /**
- * Format large sums in Indian Crore (Cr) and Lakh (L) notation.
- * Example: 15000000 -> "₹1.50 Cr"
+ * Format large sums in compact notation based on active currency.
+ * For INR: Cr (Crore) and L (Lakh).
+ * For USD/EUR/GBP: B (Billion) and M (Million).
  */
-export const formatRupeeCompact = (val) => {
-  if (val === null || val === undefined || isNaN(Number(val))) return "₹0";
-  const num = Number(val);
-  if (Math.abs(num) >= 10_000_000) {
-    return `₹${(num / 10_000_000).toFixed(2)} Cr`;
+export const formatCurrencyCompact = (val, currencyCode = null) => {
+  if (val === null || val === undefined || isNaN(Number(val))) {
+    const code = currencyCode || useSettingsStore.getState().currency || "INR";
+    return `${SUPPORTED_CURRENCIES[code]?.symbol || "₹"}0`;
   }
-  if (Math.abs(num) >= 100_000) {
-    return `₹${(num / 100_000).toFixed(2)} L`;
+
+  const code = currencyCode || useSettingsStore.getState().currency || "INR";
+  const config = SUPPORTED_CURRENCIES[code] || SUPPORTED_CURRENCIES.INR;
+  const num = Number(val);
+  const symbol = config.symbol;
+
+  if (code === "INR") {
+    if (Math.abs(num) >= 10_000_000) {
+      return `${symbol}${(num / 10_000_000).toFixed(2)} Cr`;
+    }
+    if (Math.abs(num) >= 100_000) {
+      return `${symbol}${(num / 100_000).toFixed(2)} L`;
+    }
+    if (Math.abs(num) >= 1_000) {
+      return `${symbol}${(num / 1_000).toFixed(1)} K`;
+    }
+    return `${symbol}${num.toFixed(2)}`;
+  }
+
+  // Western grouping (USD, EUR, GBP)
+  if (Math.abs(num) >= 1_000_000_000) {
+    return `${symbol}${(num / 1_000_000_000).toFixed(2)} B`;
+  }
+  if (Math.abs(num) >= 1_000_000) {
+    return `${symbol}${(num / 1_000_000).toFixed(2)} M`;
   }
   if (Math.abs(num) >= 1_000) {
-    return `₹${(num / 1_000).toFixed(1)} K`;
+    return `${symbol}${(num / 1_000).toFixed(1)} K`;
   }
-  return `₹${num.toFixed(2)}`;
+  return `${symbol}${num.toFixed(2)}`;
 };
 
 /**
- * Currency Symbol Constant
+ * React Hook for dynamic component reactivity when the user switches currency
  */
+export const useCurrency = () => {
+  const currency = useSettingsStore((state) => state.currency);
+  const setCurrency = useSettingsStore((state) => state.setCurrency);
+  const config = SUPPORTED_CURRENCIES[currency] || SUPPORTED_CURRENCIES.INR;
+
+  const format = (val, decimals = 2) => formatCurrency(val, decimals, currency);
+  const formatCompact = (val) => formatCurrencyCompact(val, currency);
+
+  return {
+    currency,
+    setCurrency,
+    symbol: config.symbol,
+    config,
+    format,
+    formatCompact,
+  };
+};
+
+/**
+ * Backward compatibility aliases so existing formatRupee calls automatically respect active currency
+ */
+export const formatRupee = (val, decimals = 2) => formatCurrency(val, decimals);
+export const formatRupeeCompact = (val) => formatCurrencyCompact(val);
 export const CURRENCY_SYMBOL = "₹";

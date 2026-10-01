@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { X, Briefcase, Loader2, AlertCircle } from "lucide-react";
-import { formatRupee } from "../utils/currency";
+import { useCurrency } from "../utils/currency";
 
 export const CreatePortfolioModal = ({ isOpen, onClose, onCreate, isCreating }) => {
+  const { format: formatRupee, symbol } = useCurrency();
   const [name, setName] = useState("Alpha Quantitative Fund");
   const [initialCash, setInitialCash] = useState("50000");
   const [error, setError] = useState("");
@@ -77,11 +78,11 @@ export const CreatePortfolioModal = ({ isOpen, onClose, onCreate, isCreating }) 
 
           <div>
             <label className="block text-[11px] font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-              Initial Virtual Cash (₹)
+              Initial Virtual Cash ({symbol})
             </label>
             <div className="relative">
               <span className="font-bold text-brand-textMuted absolute left-3.5 top-1/2 -translate-y-1/2 text-sm">
-                ₹
+                {symbol}
               </span>
               <input
                 type="number"

@@ -17,7 +17,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { formatRupee } from "../utils/currency";
+import { useCurrency } from "../utils/currency";
 
 /**
  * Format date string into human friendly format
@@ -39,6 +39,7 @@ const formatDate = (dateStr) => {
  * Custom dark-glass tooltip for multi-curve forecast visualization
  */
 const ForecastTooltip = ({ active, payload }) => {
+  const { format: formatRupee } = useCurrency();
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const isForecast = data.type === "forecast";
@@ -123,6 +124,7 @@ export const ForecastChart = ({
   error = null,
   onRetry = null,
 }) => {
+  const { format: formatRupee, symbol } = useCurrency();
   // Construct timeline joining historical points and 7-day predicted horizon
   const { chartData, minPrice, maxPrice, anchorDate, lstmTarget, driftPct } =
     useMemo(() => {
@@ -334,7 +336,7 @@ export const ForecastChart = ({
               fontSize={10}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => `₹${v}`}
+              tickFormatter={(v) => `${symbol}${v}`}
               orientation="left"
             />
 

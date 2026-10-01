@@ -17,7 +17,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { formatRupee } from "../utils/currency";
+import { useCurrency } from "../utils/currency";
 
 /**
  * Format raw numbers into compact readable volumes (e.g. 42.5M, 1.2B)
@@ -67,6 +67,7 @@ const formatTickDate = (dateStr) => {
  * Custom dark-glass tooltip matching Equitix institutional aesthetic
  */
 const CustomTooltip = ({ active, payload }) => {
+  const { format: formatRupee } = useCurrency();
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const isBullish = data.close >= data.open;
@@ -208,6 +209,7 @@ export const StockChart = ({
   error = null,
   onRetry = null,
 }) => {
+  const { format: formatRupee, symbol } = useCurrency();
   // Chart render mode: "area" (smooth neon) | "line" (precision) | "candles" (OHLC)
   const [chartMode, setChartMode] = useState("area");
   const [showVolume, setShowVolume] = useState(true);
@@ -405,7 +407,7 @@ export const StockChart = ({
               fontSize={10}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => `₹${v}`}
+              tickFormatter={(v) => `${symbol}${v}`}
               orientation="left"
             />
 

@@ -22,7 +22,7 @@ import { usePortfolios, usePortfolioDetail } from "../hooks/usePortfolios";
 import { StockChart } from "../components/StockChart";
 import { TransactionModal } from "../components/TransactionModal";
 import { toast } from "../store/toastStore";
-import { formatRupee } from "../utils/currency";
+import { useCurrency } from "../utils/currency";
 
 const TIMEFRAMES = [
   { label: "1W", days: 7 },
@@ -45,6 +45,7 @@ const POPULAR_TICKERS = [
 ];
 
 export const MarketExplorerPage = () => {
+  const { format: formatRupee } = useCurrency();
   const { selectedTicker, setSelectedTicker, setActiveTab } = useAuthStore();
   const [searchInput, setSearchInput] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);

@@ -15,9 +15,10 @@ import { usePortfolios, usePortfolioDetail } from "../hooks/usePortfolios";
 import { TransactionModal } from "../components/TransactionModal";
 import { CreatePortfolioModal } from "../components/CreatePortfolioModal";
 import { toast } from "../store/toastStore";
-import { formatRupee } from "../utils/currency";
+import { useCurrency } from "../utils/currency";
 
 export const DashboardPage = () => {
+  const { format: formatRupee } = useCurrency();
   const { portfolios, isLoadingPortfolios, createPortfolio, isCreatingPortfolio, deletePortfolio, isDeletingPortfolio } =
     usePortfolios();
 

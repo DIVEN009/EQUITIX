@@ -16,7 +16,7 @@ import {
   useStockBenchmarks,
 } from "../hooks/useStocks";
 import { ForecastChart } from "../components/ForecastChart";
-import { formatRupee } from "../utils/currency";
+import { useCurrency } from "../utils/currency";
 
 const POPULAR_TICKERS = [
   "RELIANCE.NS",
@@ -30,6 +30,7 @@ const POPULAR_TICKERS = [
 ];
 
 export const ModelEvaluationPage = () => {
+  const { format: formatRupee } = useCurrency();
   const { selectedTicker, setSelectedTicker } = useAuthStore();
   const [activeModel, setActiveModel] = useState("all"); // "all" | "lstm" | "linear"
 

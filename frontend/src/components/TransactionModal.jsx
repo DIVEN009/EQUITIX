@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { X, ArrowDownRight, ArrowUpRight, Loader2, AlertCircle } from "lucide-react";
-import { formatRupee } from "../utils/currency";
+import { useCurrency } from "../utils/currency";
 
 export const TransactionModal = ({
   isOpen,
@@ -13,6 +13,7 @@ export const TransactionModal = ({
   isExecuting,
   error,
 }) => {
+  const { format: formatRupee, symbol } = useCurrency();
   const [ticker, setTicker] = useState(initialTicker);
   const [action, setAction] = useState(initialAction);
   const [shares, setShares] = useState("10");
@@ -177,7 +178,7 @@ export const TransactionModal = ({
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-                Execution Price (₹)
+                Execution Price ({symbol})
               </label>
               <input
                 type="number"
