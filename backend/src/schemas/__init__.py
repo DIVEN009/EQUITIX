@@ -6,6 +6,15 @@ from src.schemas.user_schema import (
     Token,
     TokenData,
 )
+from src.schemas.stock_schema import (
+    StockBase,
+    StockSearchItem,
+    DailyPriceItem,
+    StockSummaryResponse,
+    StockHistoryResponse,
+    PredictionItem,
+    StockPredictionsResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -14,4 +23,11 @@ __all__ = [
     "UserResponse",
     "Token",
     "TokenData",
+    "StockBase",
+    "StockSearchItem",
+    "DailyPriceItem",
+    "StockSummaryResponse",
+    "StockHistoryResponse",
+    "PredictionItem",
+    "StockPredictionsResponse",
 ]
