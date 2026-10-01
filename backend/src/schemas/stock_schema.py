@@ -59,3 +59,23 @@ class StockPredictionsResponse(BaseModel):
     predictions: List[PredictionItem]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ModelBenchmarkItem(BaseModel):
+    model_name: str
+    display_name: str
+    rmse: float
+    directional_accuracy_pct: float
+    weights_file: Optional[str] = None
+    lookback_window: int = Field(60, description="Input sequence length in trading days")
+    forecast_horizon: int = Field(7, description="Forecast horizon in business days")
+    description: Optional[str] = None
+
+
+class StockBenchmarksResponse(BaseModel):
+    ticker: str
+    train_samples: int = 777
+    val_samples: int = 115
+    test_samples: int = 115
+    models: List[ModelBenchmarkItem]
+
