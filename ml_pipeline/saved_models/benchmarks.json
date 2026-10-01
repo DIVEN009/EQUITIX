@@ -1,0 +1,22 @@
+{
+  "AAPL": {
+    "ticker": "AAPL",
+    "sample_counts": {
+      "train": 777,
+      "val": 115,
+      "test": 115
+    },
+    "models": {
+      "baseline_linear_regression": {
+        "rmse": 17.21,
+        "directional_accuracy_pct": 49.94,
+        "weights_file": "AAPL_baseline.pkl"
+      },
+      "tensorflow_lstm": {
+        "rmse": 33.21,
+        "directional_accuracy_pct": 33.66,
+        "weights_file": "AAPL_lstm.keras"
+      }
+    }
+  }
+}
