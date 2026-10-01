@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Briefcase,
   ArrowUpRight,
@@ -6,7 +6,6 @@ import {
   Plus,
   Sparkles,
   Trash2,
-  TrendingUp,
   RefreshCw,
   Loader2,
   ChevronDown,
@@ -20,18 +19,14 @@ export const DashboardPage = () => {
   const { portfolios, isLoadingPortfolios, createPortfolio, isCreatingPortfolio, deletePortfolio, isDeletingPortfolio } =
     usePortfolios();
 
-  const [activePortfolioId, setActivePortfolioId] = useState(null);
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState(null);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [txInitialTicker, setTxInitialTicker] = useState("AAPL");
   const [txInitialAction, setTxInitialAction] = useState("BUY");
 
-  // Synchronize active portfolio ID once portfolios load
-  useEffect(() => {
-    if (portfolios.length > 0 && !activePortfolioId) {
-      setActivePortfolioId(portfolios[0].id);
-    }
-  }, [portfolios, activePortfolioId]);
+  // Derive active portfolio ID cleanly without effect cascading render
+  const activePortfolioId = selectedPortfolioId || (portfolios.length > 0 ? portfolios[0].id : null);
 
   const { portfolio, isLoading: isLoadingDetail, executeTransaction, isExecutingTx, txError, refetch } =
     usePortfolioDetail(activePortfolioId);
@@ -46,7 +41,7 @@ export const DashboardPage = () => {
     if (!activePortfolioId) return;
     if (window.confirm("Are you sure you want to delete this portfolio? This cannot be undone.")) {
       await deletePortfolio(activePortfolioId);
-      setActivePortfolioId(null);
+      setSelectedPortfolioId(null);
     }
   };
 
@@ -87,7 +82,7 @@ export const DashboardPage = () => {
           onClose={() => setIsCreateModalOpen(false)}
           onCreate={async (data) => {
             const newP = await createPortfolio(data);
-            if (newP?.id) setActivePortfolioId(newP.id);
+            if (newP?.id) setSelectedPortfolioId(newP.id);
           }}
           isCreating={isCreatingPortfolio}
         />
@@ -112,7 +107,7 @@ export const DashboardPage = () => {
         <div className="relative flex-1">
           <select
             value={activePortfolioId || ""}
-            onChange={(e) => setActivePortfolioId(e.target.value)}
+            onChange={(e) => setSelectedPortfolioId(e.target.value)}
             className="w-full bg-brand-surface border border-white/10 hover:border-white/20 rounded-2xl px-4 py-2.5 text-xs font-bold text-white appearance-none cursor-pointer pr-10 focus:outline-none focus:border-brand-emerald"
           >
             {portfolios.map((p) => (

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, ArrowDownRight, ArrowUpRight, Loader2, AlertCircle, DollarSign } from "lucide-react";
+import { X, ArrowDownRight, ArrowUpRight, Loader2, AlertCircle } from "lucide-react";
 
 export const TransactionModal = ({
   isOpen,

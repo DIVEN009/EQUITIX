@@ -1,5 +1,5 @@
 import React from "react";
-import { Briefcase, TrendingUp, Cpu, LogOut } from "lucide-react";
+import { Briefcase, TrendingUp, Cpu } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 export const Navigation = () => {

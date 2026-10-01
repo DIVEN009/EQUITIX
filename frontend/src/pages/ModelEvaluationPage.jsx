@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Cpu, LineChart, Sparkles, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Cpu, LineChart, Sparkles } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 export const ModelEvaluationPage = () => {
