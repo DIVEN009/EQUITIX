@@ -72,3 +72,27 @@ body {
 .btn-emerald-glow:active {
   transform: translateY(0);
 }
+
+/* Hide scrollbar for clean horizontal pill trays */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Subtle glow pulse */
+@keyframes emeraldPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(0, 245, 155, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(0, 245, 155, 0.4);
+  }
+}
+
+.glow-emerald-pulse {
+  animation: emeraldPulse 3s ease-in-out infinite;
+}
+

@@ -14,6 +14,7 @@ import {
 import { usePortfolios, usePortfolioDetail } from "../hooks/usePortfolios";
 import { TransactionModal } from "../components/TransactionModal";
 import { CreatePortfolioModal } from "../components/CreatePortfolioModal";
+import { toast } from "../store/toastStore";
 
 export const DashboardPage = () => {
   const { portfolios, isLoadingPortfolios, createPortfolio, isCreatingPortfolio, deletePortfolio, isDeletingPortfolio } =
@@ -42,7 +43,16 @@ export const DashboardPage = () => {
     if (window.confirm("Are you sure you want to delete this portfolio? This cannot be undone.")) {
       await deletePortfolio(activePortfolioId);
       setSelectedPortfolioId(null);
+      toast.info("Portfolio Removed", "Portfolio and associated holdings were removed.");
     }
+  };
+
+  const handleExecuteTx = async (txData) => {
+    await executeTransaction(txData);
+    toast.success(
+      "Order Executed",
+      `${txData.action} ${txData.shares} ${txData.ticker} executed at $${txData.price.toFixed(2)}.`
+    );
   };
 
   if (isLoadingPortfolios) {
@@ -82,7 +92,10 @@ export const DashboardPage = () => {
           onClose={() => setIsCreateModalOpen(false)}
           onCreate={async (data) => {
             const newP = await createPortfolio(data);
-            if (newP?.id) setSelectedPortfolioId(newP.id);
+            if (newP?.id) {
+              setSelectedPortfolioId(newP.id);
+              toast.success("Portfolio Initialized", `Created "${newP.name}" with $${Number(newP.cash_balance).toLocaleString()} capital.`);
+            }
           }}
           isCreating={isCreatingPortfolio}
         />
@@ -318,7 +331,7 @@ export const DashboardPage = () => {
         cashBalance={portfolio?.cash_balance || 0}
         initialTicker={txInitialTicker}
         initialAction={txInitialAction}
-        onExecute={executeTransaction}
+        onExecute={handleExecuteTx}
         isExecuting={isExecutingTx}
         error={txError}
       />
@@ -329,7 +342,10 @@ export const DashboardPage = () => {
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={async (data) => {
           const newP = await createPortfolio(data);
-          if (newP?.id) setActivePortfolioId(newP.id);
+          if (newP?.id) {
+            setSelectedPortfolioId(newP.id);
+            toast.success("Portfolio Initialized", `Created "${newP.name}" with $${Number(newP.cash_balance).toLocaleString()} capital.`);
+          }
         }}
         isCreating={isCreatingPortfolio}
       />
