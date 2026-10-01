@@ -45,4 +45,6 @@ out/
 .DS_Store
 Thumbs.db
 
-docs
+docs/*.docx
+docs/*.png
+!docs/*.md
