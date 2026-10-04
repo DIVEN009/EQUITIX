@@ -1,12 +1,14 @@
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class StockBase(BaseModel):
-    ticker: str = Field(..., max_length=10, description="Stock ticker symbol (e.g. AAPL)")
+    ticker: str = Field(..., max_length=30, description="Stock ticker symbol (e.g. AAPL, RELIANCE.NS)")
     company_name: str = Field(..., description="Full company name")
     sector: Optional[str] = Field(None, description="Industry sector")
+    exchange: Optional[str] = Field("US", description="Exchange code (e.g. NSE, BSE, NASDAQ, NYSE)")
+    currency: Optional[str] = Field("USD", description="Trading currency (e.g. INR, USD, EUR)")
 
 
 class StockSearchItem(StockBase):
@@ -14,7 +16,7 @@ class StockSearchItem(StockBase):
 
 
 class DailyPriceItem(BaseModel):
-    date: date
+    date: Union[datetime, date, str]
     open: float
     high: float
     low: float
@@ -38,6 +40,7 @@ class StockSummaryResponse(StockBase):
 class StockHistoryResponse(BaseModel):
     ticker: str
     company_name: Optional[str] = None
+    currency: str = Field("USD", description="Native trading currency")
     count: int
     source: str = Field("live", description="'live' or 'db_fallback'")
     data: List[DailyPriceItem]
@@ -78,4 +81,13 @@ class StockBenchmarksResponse(BaseModel):
     val_samples: int = 115
     test_samples: int = 115
     models: List[ModelBenchmarkItem]
+
+
+class ForexRatesResponse(BaseModel):
+    base: str = "USD"
+    rates: dict[str, float]
+    timestamp: str
+
+    model_config = ConfigDict(from_attributes=True)
+
 

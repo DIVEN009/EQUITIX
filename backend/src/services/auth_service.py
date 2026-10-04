@@ -35,6 +35,8 @@ class AuthService:
             db=db,
             email=user_in.email,
             password_hash=hashed_password,
+            first_name=user_in.first_name,
+            last_name=user_in.last_name,
         )
 
         access_token = create_access_token(

@@ -13,7 +13,13 @@ class StockRepository:
     """
 
     def get_stock(self, db: Session, ticker: str) -> Optional[Stock]:
-        return db.query(Stock).filter(Stock.ticker == ticker.upper().strip()).first()
+        ticker_clean = ticker.upper().strip()
+        stock = db.query(Stock).filter(Stock.ticker == ticker_clean).first()
+        if not stock and "." not in ticker_clean:
+            stock = db.query(Stock).filter(Stock.ticker == f"{ticker_clean}.NS").first()
+            if not stock:
+                stock = db.query(Stock).filter(Stock.ticker == f"{ticker_clean}.BO").first()
+        return stock
 
     def upsert_stock(
         self,
@@ -50,9 +56,12 @@ class StockRepository:
         )
 
     def get_latest_daily_price(self, db: Session, ticker: str) -> Optional[DailyPrice]:
+        ticker_clean = ticker.upper().strip()
+        stock = self.get_stock(db, ticker_clean)
+        actual_ticker = stock.ticker if stock else ticker_clean
         return (
             db.query(DailyPrice)
-            .filter(DailyPrice.ticker == ticker.upper().strip())
+            .filter(DailyPrice.ticker == actual_ticker)
             .order_by(DailyPrice.date.desc())
             .first()
         )
@@ -63,11 +72,14 @@ class StockRepository:
         ticker: str,
         days: int = 365,
     ) -> List[DailyPrice]:
+        ticker_clean = ticker.upper().strip()
+        stock = self.get_stock(db, ticker_clean)
+        actual_ticker = stock.ticker if stock else ticker_clean
         cutoff_date = date.today() - timedelta(days=days)
         return (
             db.query(DailyPrice)
             .filter(
-                DailyPrice.ticker == ticker.upper().strip(),
+                DailyPrice.ticker == actual_ticker,
                 DailyPrice.date >= cutoff_date,
             )
             .order_by(DailyPrice.date.asc())

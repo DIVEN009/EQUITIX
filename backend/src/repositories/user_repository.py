@@ -15,10 +15,19 @@ class UserRepository:
     def get_by_email(self, db: Session, email: str) -> Optional[User]:
         return db.query(User).filter(User.email == email.lower()).first()
 
-    def create(self, db: Session, email: str, password_hash: str) -> User:
+    def create(
+        self,
+        db: Session,
+        email: str,
+        password_hash: str,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+    ) -> User:
         user = User(
             email=email.lower().strip(),
             password_hash=password_hash,
+            first_name=first_name.strip() if first_name else None,
+            last_name=last_name.strip() if last_name else None,
         )
         db.add(user)
         db.commit()
