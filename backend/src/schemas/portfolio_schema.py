@@ -14,7 +14,7 @@ class PortfolioCreate(BaseModel):
 
 
 class TransactionCreate(BaseModel):
-    ticker: str = Field(..., max_length=10, description="Stock ticker symbol (e.g. AAPL)")
+    ticker: str = Field(..., max_length=30, description="Stock ticker symbol (e.g. AAPL, RELIANCE.NS)")
     action: Literal["BUY", "SELL"] = Field(..., description="Transaction action: BUY or SELL")
     shares: float = Field(..., gt=0, description="Number of shares to buy or sell")
     price: float = Field(..., gt=0, description="Execution price per share")

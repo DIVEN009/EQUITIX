@@ -17,7 +17,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { useCurrency } from "../utils/currency";
+import { useCurrency, getStockNativeCurrency } from "../utils/currency";
 
 /**
  * Format date string into human friendly format
@@ -39,7 +39,7 @@ const formatDate = (dateStr) => {
  * Custom dark-glass tooltip for multi-curve forecast visualization
  */
 const ForecastTooltip = ({ active, payload }) => {
-  const { format: formatRupee } = useCurrency();
+  const { formatRaw } = useCurrency();
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const isForecast = data.type === "forecast";
@@ -69,7 +69,7 @@ const ForecastTooltip = ({ active, payload }) => {
               Actual Close:
             </span>
             <span className="font-bold text-white text-xs">
-              {formatRupee(data.actual)}
+              {formatRaw(data.actual)}
             </span>
           </div>
         )}
@@ -82,7 +82,7 @@ const ForecastTooltip = ({ active, payload }) => {
               Deep LSTM:
             </span>
             <span className="font-black text-brand-emerald text-xs">
-              {formatRupee(data.lstm)}
+              {formatRaw(data.lstm)}
             </span>
           </div>
         )}
@@ -95,7 +95,7 @@ const ForecastTooltip = ({ active, payload }) => {
               Baseline Linear:
             </span>
             <span className="font-bold text-brand-cyan text-xs">
-              {formatRupee(data.baseline)}
+              {formatRaw(data.baseline)}
             </span>
           </div>
         )}
@@ -105,7 +105,7 @@ const ForecastTooltip = ({ active, payload }) => {
           <div className="pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px]">
             <span className="text-brand-textMuted">Model Divergence:</span>
             <span className="font-semibold text-white">
-              {formatRupee(Math.abs(data.lstm - data.baseline))} (
+              {formatRaw(Math.abs(data.lstm - data.baseline))} (
               {((Math.abs(data.lstm - data.baseline) / data.baseline) * 100).toFixed(2)}%)
             </span>
           </div>
@@ -119,12 +119,16 @@ const ForecastTooltip = ({ active, payload }) => {
 export const ForecastChart = ({
   historyData = [],
   predictionsData = [],
+  ticker = "",
   activeModel = "all", // "all" | "lstm" | "linear"
   isLoading = false,
   error = null,
   onRetry = null,
 }) => {
-  const { format: formatRupee, symbol } = useCurrency();
+  const { convert, symbol } = useCurrency();
+  const nativeCurrency = getStockNativeCurrency(ticker);
+  const conversionRate = convert(1, nativeCurrency);
+
   // Construct timeline joining historical points and 7-day predicted horizon
   const { chartData, minPrice, maxPrice, anchorDate, lstmTarget, driftPct } =
     useMemo(() => {
@@ -166,29 +170,32 @@ export const ForecastChart = ({
         new Set([...Object.keys(lstmMap), ...Object.keys(baselineMap)])
       ).sort((a, b) => new Date(a) - new Date(b));
 
-      // Construct points
+      // Construct points with currency conversion applied
       const points = [];
 
       // Historical points
       recentHistory.forEach((h, index) => {
         const isAnchor = index === recentHistory.length - 1;
+        const cPrice = h.close != null ? Number((h.close * conversionRate).toFixed(2)) : null;
         points.push({
           date: h.date,
-          actual: h.close,
+          actual: cPrice,
           // Anchor point binds to both curves to avoid discontinuous rendering gap
-          lstm: isAnchor ? h.close : null,
-          baseline: isAnchor ? h.close : null,
+          lstm: isAnchor ? cPrice : null,
+          baseline: isAnchor ? cPrice : null,
           type: "history",
         });
       });
 
       // Forecast points
       futureDates.forEach((dStr) => {
+        const rawLstm = lstmMap[dStr];
+        const rawBase = baselineMap[dStr];
         points.push({
           date: dStr,
           actual: null,
-          lstm: lstmMap[dStr] ?? null,
-          baseline: baselineMap[dStr] ?? null,
+          lstm: rawLstm != null ? Number((rawLstm * conversionRate).toFixed(2)) : null,
+          baseline: rawBase != null ? Number((rawBase * conversionRate).toFixed(2)) : null,
           type: "forecast",
         });
       });
@@ -204,6 +211,7 @@ export const ForecastChart = ({
 
       const lastLstm = futureDates.length > 0 ? lstmMap[futureDates[futureDates.length - 1]] : null;
       const lastBase = futureDates.length > 0 ? baselineMap[futureDates[futureDates.length - 1]] : null;
+      const convertedTarget = lastLstm != null ? Number((lastLstm * conversionRate).toFixed(2)) : null;
       const drift = anchorPrice && lastLstm ? ((lastLstm - anchorPrice) / anchorPrice) * 100 : 0;
 
       return {
@@ -211,11 +219,11 @@ export const ForecastChart = ({
         minPrice: Math.max(0, Math.floor(min - padding)),
         maxPrice: Math.ceil(max + padding),
         anchorDate: anchorDt,
-        lstmTarget: lastLstm,
-        baselineTarget: lastBase,
+        lstmTarget: convertedTarget,
+        baselineTarget: lastBase != null ? Number((lastBase * conversionRate).toFixed(2)) : null,
         driftPct: drift,
       };
-    }, [historyData, predictionsData]);
+    }, [historyData, predictionsData, conversionRate]);
 
   if (isLoading) {
     return (
@@ -308,7 +316,7 @@ export const ForecastChart = ({
       </div>
 
       {/* Main Multi-Curve Recharts Canvas */}
-      <div className="w-full h-56 md:h-64 select-none">
+      <div className="w-full h-64 sm:h-72 md:h-80 lg:h-[380px] select-none">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={chartData}

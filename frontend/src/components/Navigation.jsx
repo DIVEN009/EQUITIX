@@ -1,5 +1,5 @@
 import React from "react";
-import { Briefcase, TrendingUp, Cpu } from "lucide-react";
+import { Briefcase, TrendingUp, Sparkles } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 export const Navigation = () => {
@@ -8,11 +8,11 @@ export const Navigation = () => {
   const navItems = [
     { id: "dashboard", label: "Portfolio", icon: Briefcase },
     { id: "market", label: "Market", icon: TrendingUp },
-    { id: "models", label: "ML Models", icon: Cpu },
+    { id: "models", label: "Predictions", icon: Sparkles },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-brand-surface/90 backdrop-blur-lg border-t border-white/10 px-6 py-2">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-brand-surface/95 backdrop-blur-lg border-t border-white/10 px-6 py-2">
       <div className="max-w-md mx-auto flex items-center justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;

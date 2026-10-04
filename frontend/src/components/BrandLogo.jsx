@@ -1,41 +1,34 @@
 import React from "react";
-import { TrendingUp } from "lucide-react";
+import logoImg from "../assets/logo.png";
 
-export const BrandLogo = ({ size = "md", showAiBadge = true }) => {
-  const iconSizes = {
-    sm: "w-4 h-4",
-    md: "w-6 h-6",
-    lg: "w-8 h-8",
+export const BrandLogo = ({
+  size = "md",
+  className = "",
+  onClick = null,
+}) => {
+  const sizeClasses = {
+    xs: "h-7 w-auto",
+    sm: "h-9 sm:h-10 w-auto",
+    md: "h-11 sm:h-12 w-auto",
+    lg: "h-16 sm:h-20 w-auto",
+    xl: "h-22 sm:h-28 w-auto",
   };
 
-  const containerSizes = {
-    sm: "p-1.5 rounded-lg",
-    md: "p-2.5 rounded-xl",
-    lg: "p-3.5 rounded-2xl",
-  };
+  const selectedSize = sizeClasses[size] || sizeClasses.md;
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="relative">
-        <div
-          className={`bg-brand-card border border-emerald-500/30 flex items-center justify-center shadow-emeraldGlow ${containerSizes[size]}`}
-        >
-          <TrendingUp className={`text-brand-emerald stroke-[2.5] ${iconSizes[size]}`} />
-        </div>
-        {showAiBadge && (
-          <span className="absolute -top-1 -right-2 px-1.5 py-0.5 text-[9px] font-bold tracking-wider bg-emerald-500/20 text-brand-emerald border border-brand-emerald/40 rounded-full">
-            AI
-          </span>
-        )}
-      </div>
-      <div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-lg font-bold tracking-tight text-white">Equitix</span>
-        </div>
-        <span className="text-[10px] uppercase tracking-widest text-brand-textMuted font-medium block">
-          Precision Intelligence
-        </span>
-      </div>
+    <div
+      onClick={onClick}
+      className={`inline-flex items-center select-none ${
+        onClick ? "cursor-pointer transition-transform duration-200 hover:scale-[1.03] active:scale-[0.98]" : ""
+      } ${className}`}
+    >
+      <img
+        src={logoImg}
+        alt="Equitix - Predict | Analyze | Grow"
+        className={`${selectedSize} object-contain transition-all`}
+        loading="eager"
+      />
     </div>
   );
 };

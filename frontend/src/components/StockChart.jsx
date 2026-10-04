@@ -9,6 +9,7 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  ReferenceLine,
 } from "recharts";
 import {
   TrendingUp,
@@ -17,7 +18,7 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { useCurrency } from "../utils/currency";
+import { useCurrency, getStockNativeCurrency } from "../utils/currency";
 
 /**
  * Format raw numbers into compact readable volumes (e.g. 42.5M, 1.2B)
@@ -33,10 +34,13 @@ const formatVolume = (vol) => {
 /**
  * Format date string into human friendly format
  */
-const formatDate = (dateStr) => {
+const formatDate = (dateStr, is1D = false) => {
   if (!dateStr) return "";
   try {
     const d = new Date(dateStr);
+    if (is1D || String(dateStr).includes("T") || String(dateStr).includes(":")) {
+      return `${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })} • ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+    }
     return d.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -50,10 +54,13 @@ const formatDate = (dateStr) => {
 /**
  * Short tick formatter for X-Axis
  */
-const formatTickDate = (dateStr) => {
+const formatTickDate = (dateStr, is1D = false) => {
   if (!dateStr) return "";
   try {
     const d = new Date(dateStr);
+    if (is1D || String(dateStr).includes("T") || String(dateStr).includes(":")) {
+      return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
+    }
     return d.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -66,19 +73,20 @@ const formatTickDate = (dateStr) => {
 /**
  * Custom dark-glass tooltip matching Equitix institutional aesthetic
  */
-const CustomTooltip = ({ active, payload }) => {
-  const { format: formatRupee } = useCurrency();
+const CustomTooltip = ({ active, payload, is1D = false, previousClose = null }) => {
+  const { formatRaw } = useCurrency();
   if (active && payload && payload.length) {
     const data = payload[0].payload;
-    const isBullish = data.close >= data.open;
-    const dayChange = data.close - data.open;
-    const dayChangePct = data.open ? (dayChange / data.open) * 100 : 0;
+    const refPrice = is1D && previousClose != null ? previousClose : data.open;
+    const isBullish = refPrice != null ? data.close >= refPrice : data.close >= data.open;
+    const change = refPrice != null ? data.close - refPrice : data.close - data.open;
+    const changePct = refPrice ? (change / refPrice) * 100 : 0;
 
     return (
-      <div className="bg-brand-surface/95 backdrop-blur-md border border-white/10 rounded-2xl p-3.5 shadow-2xl text-xs space-y-2.5 min-w-[190px] pointer-events-none">
+      <div className="bg-brand-surface/95 backdrop-blur-md border border-white/10 rounded-2xl p-3.5 shadow-2xl text-xs space-y-2.5 min-w-[210px] pointer-events-none">
         <div className="flex items-center justify-between border-b border-white/10 pb-2">
           <span className="text-brand-textMuted text-[11px] font-medium">
-            {formatDate(data.date)}
+            {formatDate(data.date, is1D)}
           </span>
           <span
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
@@ -93,10 +101,10 @@ const CustomTooltip = ({ active, payload }) => {
 
         <div>
           <div className="text-[10px] text-brand-textMuted uppercase font-semibold tracking-wider">
-            Closing Price
+            {data.isSessionOpenAnchor ? "Session Open Tick" : "Price"}
           </div>
           <div className="text-lg font-black text-white">
-            {formatRupee(data.close)}
+            {formatRaw(data.close)}
           </div>
           <div
             className={`text-[11px] font-semibold flex items-center gap-1 mt-0.5 ${
@@ -110,8 +118,9 @@ const CustomTooltip = ({ active, payload }) => {
             )}
             <span>
               {isBullish ? "+" : ""}
-              {formatRupee(dayChange)} ({isBullish ? "+" : ""}
-              {dayChangePct.toFixed(2)}%)
+              {formatRaw(change)} ({isBullish ? "+" : ""}
+              {changePct.toFixed(2)}%)
+              {is1D && previousClose != null ? " vs Prev Close" : ""}
             </span>
           </div>
         </div>
@@ -120,19 +129,19 @@ const CustomTooltip = ({ active, payload }) => {
           <div>
             <span className="text-brand-textMuted">Open: </span>
             <span className="font-semibold text-white">
-              {formatRupee(data.open)}
+              {formatRaw(data.open)}
             </span>
           </div>
           <div>
             <span className="text-brand-textMuted">High: </span>
             <span className="font-semibold text-brand-emerald">
-              {formatRupee(data.high)}
+              {formatRaw(data.high)}
             </span>
           </div>
           <div>
             <span className="text-brand-textMuted">Low: </span>
             <span className="font-semibold text-brand-red">
-              {formatRupee(data.low)}
+              {formatRaw(data.low)}
             </span>
           </div>
           <div>
@@ -205,16 +214,32 @@ const CandlestickShape = (props) => {
 export const StockChart = ({
   data = [],
   ticker = "",
+  timeframe = "1M",
+  previousClose = null,
+  currency: stockCurrency = null,
   isLoading = false,
   error = null,
   onRetry = null,
 }) => {
-  const { format: formatRupee, symbol } = useCurrency();
+  const { convert, symbol, formatRaw } = useCurrency();
+  const nativeCurrency = getStockNativeCurrency(ticker, stockCurrency);
+  const conversionRate = convert(1, nativeCurrency);
+
+  const convertedPrevClose =
+    previousClose != null && !isNaN(previousClose) && Number(previousClose) > 0
+      ? Number((Number(previousClose) * conversionRate).toFixed(2))
+      : null;
+
+  const is1D =
+    timeframe === "1D" ||
+    (data.length > 0 &&
+      (String(data[0].date).includes("T") || String(data[0].date).includes(":")));
+
   // Chart render mode: "area" (smooth neon) | "line" (precision) | "candles" (OHLC)
   const [chartMode, setChartMode] = useState("area");
   const [showVolume, setShowVolume] = useState(true);
 
-  // Derive metrics and bounds from data
+  // Derive metrics and bounds from data converted to active display currency
   const {
     chartData,
     minPrice,
@@ -236,25 +261,105 @@ export const StockChart = ({
       };
     }
 
-    const highs = data.map((d) => d.high || d.close);
-    const lows = data.map((d) => d.low || d.close);
-    const volumes = data.map((d) => d.volume || 0);
+    const activeData =
+      conversionRate === 1
+        ? data
+        : data.map((d) => ({
+            ...d,
+            open: d.open != null ? Number((d.open * conversionRate).toFixed(2)) : d.open,
+            high: d.high != null ? Number((d.high * conversionRate).toFixed(2)) : d.high,
+            low: d.low != null ? Number((d.low * conversionRate).toFixed(2)) : d.low,
+            close: d.close != null ? Number((d.close * conversionRate).toFixed(2)) : d.close,
+          }));
 
-    const min = Math.min(...lows);
-    const max = Math.max(...highs);
+    let processedData = activeData;
+
+    // For 1D intraday mode, anchor the continuous line/area curve to the session opening price tick
+    if (is1D && activeData.length > 0 && chartMode !== "candles") {
+      const firstBar = activeData[0];
+      if (firstBar && firstBar.open != null && firstBar.open !== firstBar.close) {
+        let intervalMs = 5 * 60 * 1000;
+        if (activeData.length > 1) {
+          const t0 = new Date(activeData[0].date).getTime();
+          const t1 = new Date(activeData[1].date).getTime();
+          if (!isNaN(t0) && !isNaN(t1) && t1 > t0 && t1 - t0 <= 30 * 60 * 1000) {
+            intervalMs = t1 - t0;
+          }
+        }
+
+        const shiftedBars = activeData.map((d) => {
+          const t = new Date(d.date).getTime();
+          if (!isNaN(t)) {
+            return {
+              ...d,
+              date: new Date(t + intervalMs).toISOString(),
+            };
+          }
+          return d;
+        });
+
+        const openPoint = {
+          ...firstBar,
+          close: firstBar.open,
+          high: firstBar.open,
+          low: firstBar.open,
+          volume: 0,
+          isSessionOpenAnchor: true,
+        };
+
+        processedData = [openPoint, ...shiftedBars];
+      }
+    }
+
+    const highs = processedData.map((d) => d.high || d.close);
+    const lows = processedData.map((d) => d.low || d.close);
+    const volumes = processedData.map((d) => d.volume || 0);
+
+    let min = Math.min(...lows);
+    let max = Math.max(...highs);
     const maxVol = Math.max(...volumes);
 
-    const padding = (max - min) * 0.05 || 1;
-    const yMin = Math.max(0, Math.floor(min - padding));
-    const yMax = Math.ceil(max + padding);
+    // If previous close is available, ensure chart vertical domain encompasses it
+    if (convertedPrevClose != null && convertedPrevClose > 0) {
+      min = Math.min(min, convertedPrevClose);
+      max = Math.max(max, convertedPrevClose);
+    }
 
-    const firstPrice = data[0]?.close || 1;
-    const lastPrice = data[data.length - 1]?.close || 1;
-    const change = lastPrice - firstPrice;
-    const changePct = firstPrice ? (change / firstPrice) * 100 : 0;
+    const priceSpan = max - min;
+    // Institutional 20% vertical padding for 1D ensures price curve floats freely without ceiling/floor clipping
+    const paddingFactor = is1D ? 0.20 : 0.08;
+    const padding = priceSpan > 0 ? priceSpan * paddingFactor : (min * 0.02 || 1);
+
+    let yMin = Math.max(0, min - padding);
+    let yMax = max + padding;
+
+    if (priceSpan > 20) {
+      yMin = Math.floor(yMin);
+      yMax = Math.ceil(yMax);
+    } else if (priceSpan > 2) {
+      yMin = Math.floor(yMin * 2) / 2;
+      yMax = Math.ceil(yMax * 2) / 2;
+    } else {
+      yMin = Math.floor(yMin * 10) / 10;
+      yMax = Math.ceil(yMax * 10) / 10;
+    }
+
+    const lastPrice = processedData[processedData.length - 1]?.close || 1;
+    let change = 0;
+    let changePct = 0;
+
+    if (is1D && convertedPrevClose != null && convertedPrevClose > 0) {
+      // Standard financial convention: 1D return is benchmarked against Previous Close
+      change = lastPrice - convertedPrevClose;
+      changePct = (change / convertedPrevClose) * 100;
+    } else {
+      const firstPrice = processedData[0]?.close || 1;
+      change = lastPrice - firstPrice;
+      changePct = firstPrice ? (change / firstPrice) * 100 : 0;
+    }
 
     return {
-      chartData: data,
+      chartData: processedData,
       minPrice: yMin,
       maxPrice: yMax,
       maxVolume: maxVol,
@@ -262,7 +367,7 @@ export const StockChart = ({
       periodChangePercent: changePct,
       isPositive: change >= 0,
     };
-  }, [data]);
+  }, [data, conversionRate, convertedPrevClose, is1D, chartMode]);
 
   const themeColor = isPositive ? "#00F59B" : "#EF4444";
   const gradientId = `stockGradient_${ticker}_${isPositive ? "up" : "down"}`;
@@ -317,7 +422,9 @@ export const StockChart = ({
       <div className="flex items-center justify-between text-xs px-1">
         {/* Period Net Return Pill */}
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-brand-textMuted">Period Return:</span>
+          <span className="text-[11px] text-brand-textMuted">
+            {is1D ? "Session Return:" : "Period Return:"}
+          </span>
           <span
             className={`font-bold flex items-center gap-1 ${
               isPositive ? "text-brand-emerald" : "text-brand-red"
@@ -329,7 +436,7 @@ export const StockChart = ({
               <TrendingDown className="w-3.5 h-3.5" />
             )}
             {isPositive ? "+" : ""}
-            {formatRupee(periodChange)} ({isPositive ? "+" : ""}
+            {formatRaw(periodChange)} ({isPositive ? "+" : ""}
             {periodChangePercent.toFixed(2)}%)
           </span>
         </div>
@@ -370,11 +477,11 @@ export const StockChart = ({
       </div>
 
       {/* Main Chart Canvas */}
-      <div className="w-full h-56 md:h-64 select-none">
+      <div className="w-full h-64 sm:h-72 md:h-80 lg:h-[380px] select-none">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={chartData}
-            margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+            margin={{ top: 14, right: convertedPrevClose != null ? 36 : 12, left: -20, bottom: 0 }}
           >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -389,14 +496,33 @@ export const StockChart = ({
               stroke="rgba(255, 255, 255, 0.05)"
             />
 
+            {/* Previous Close Reference Line (Google Finance / Institutional Benchmark) */}
+            {convertedPrevClose != null && (
+              <ReferenceLine
+                yAxisId="price"
+                y={convertedPrevClose}
+                stroke="#64748B"
+                strokeDasharray="4 4"
+                strokeWidth={1.2}
+                label={{
+                  value: `Prev Close ${symbol}${convertedPrevClose}`,
+                  position: "insideTopRight",
+                  fill: "#94A3B8",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  offset: 6,
+                }}
+              />
+            )}
+
             <XAxis
               dataKey="date"
-              tickFormatter={formatTickDate}
+              tickFormatter={(val) => formatTickDate(val, is1D)}
               stroke="#64748B"
               fontSize={10}
               tickLine={false}
               axisLine={{ stroke: "rgba(255, 255, 255, 0.1)" }}
-              minTickGap={25}
+              minTickGap={is1D ? 35 : 25}
             />
 
             {/* Primary Price Axis */}
@@ -419,7 +545,7 @@ export const StockChart = ({
               orientation="right"
             />
 
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip is1D={is1D} previousClose={convertedPrevClose} />} />
 
             {/* Volume sub-overlay bars */}
             {showVolume && (
@@ -499,6 +625,12 @@ export const StockChart = ({
             />
             {ticker} Close
           </span>
+          {convertedPrevClose != null && (
+            <span className="flex items-center gap-1.5 text-slate-400 font-mono">
+              <span className="w-3 border-t border-dashed border-slate-400 inline-block" />
+              Prev Close: {symbol}{convertedPrevClose}
+            </span>
+          )}
           <button
             onClick={() => setShowVolume((prev) => !prev)}
             className={`hover:text-white transition-colors ${
@@ -508,8 +640,8 @@ export const StockChart = ({
             Volume Overlay
           </button>
         </div>
-        <span className="text-[10px] tracking-wider uppercase font-semibold">
-          Data Stream: Daily OHLCV
+        <span className="text-[10px] tracking-wider uppercase font-semibold font-mono">
+          {is1D ? "Data Stream: 5-Min Intraday Ticks" : "Data Stream: Daily OHLCV"}
         </span>
       </div>
     </div>
