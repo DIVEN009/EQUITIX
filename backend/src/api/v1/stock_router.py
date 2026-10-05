@@ -69,6 +69,11 @@ POPULAR_STOCKS = [
     {"ticker": "ZOMATO.NS", "company_name": "Zomato Ltd", "sector": "Consumer Services", "exchange": "NSE", "currency": "INR"},
     {"ticker": "PFC.NS", "company_name": "Power Finance Corporation", "sector": "Financial Services", "exchange": "NSE", "currency": "INR"},
     {"ticker": "REC.NS", "company_name": "REC Ltd", "sector": "Financial Services", "exchange": "NSE", "currency": "INR"},
+    {"ticker": "RTNPOWER.NS", "company_name": "RattanIndia Power Ltd", "sector": "Utilities", "exchange": "NSE", "currency": "INR"},
+    {"ticker": "RTNINDIA.NS", "company_name": "RattanIndia Enterprises Ltd", "sector": "Industrials", "exchange": "NSE", "currency": "INR"},
+    {"ticker": "SJVN.NS", "company_name": "SJVN Ltd", "sector": "Utilities", "exchange": "NSE", "currency": "INR"},
+    {"ticker": "IREDA.NS", "company_name": "Indian Renewable Energy Dev Agency", "sector": "Financial Services", "exchange": "NSE", "currency": "INR"},
+    {"ticker": "RVNL.NS", "company_name": "Rail Vikas Nigam Ltd", "sector": "Industrials", "exchange": "NSE", "currency": "INR"},
     # US & Global Tech Leaders
     {"ticker": "AAPL", "company_name": "Apple Inc.", "sector": "Technology", "exchange": "NASDAQ", "currency": "USD"},
     {"ticker": "MSFT", "company_name": "Microsoft Corporation", "sector": "Technology", "exchange": "NASDAQ", "currency": "USD"},
@@ -78,64 +83,6 @@ POPULAR_STOCKS = [
     {"ticker": "TSLA", "company_name": "Tesla Inc.", "sector": "Automotive", "exchange": "NASDAQ", "currency": "USD"},
     {"ticker": "META", "company_name": "Meta Platforms Inc.", "sector": "Communication Services", "exchange": "NASDAQ", "currency": "USD"},
 ]
-
-
-def _sync_live_yf_search(query: str, max_results: int = 8) -> List[dict]:
-    """Execute yfinance Search to discover any global or Indian equities."""
-    try:
-        import yfinance as yf
-        search_obj = yf.Search(query, max_results=max_results)
-        quotes = list(search_obj.quotes or [])
-
-        # If query is a bare symbol without dots (e.g. HAL, SAIL, BEL, BHEL, CANBK),
-        # also search its .NS counterpart to ensure Indian equities are discovered
-        clean_q = query.strip().upper()
-        if "." not in clean_q and len(clean_q) <= 10:
-            try:
-                ns_search = yf.Search(f"{clean_q}.NS", max_results=2)
-                if ns_search.quotes:
-                    quotes = list(ns_search.quotes) + quotes
-            except Exception:
-                pass
-
-        items = []
-        seen = set()
-        for quote in quotes:
-            q_type = quote.get("quoteType", "").upper()
-            if q_type in ("EQUITY", "ETF"):
-                sym = quote.get("symbol")
-                if sym and sym not in seen:
-                    seen.add(sym)
-                    name = quote.get("shortname") or quote.get("longname") or sym
-                    sector = quote.get("sector")
-                    raw_exch = quote.get("exchDisp") or quote.get("exchange") or "US"
-                    exch = "US"
-                    curr = "USD"
-
-                    if sym.endswith(".NS"):
-                        exch = "NSE"
-                        curr = "INR"
-                    elif sym.endswith(".BO"):
-                        exch = "BSE"
-                        curr = "INR"
-                    elif "NAS" in str(raw_exch).upper():
-                        exch = "NASDAQ"
-                    elif "NY" in str(raw_exch).upper():
-                        exch = "NYSE"
-                    else:
-                        exch = str(raw_exch)
-
-                    items.append({
-                        "ticker": sym,
-                        "company_name": name,
-                        "sector": sector,
-                        "exchange": exch,
-                        "currency": curr,
-                    })
-        return items
-    except Exception as exc:
-        logger.warning(f"Error in yfinance Search for '{query}': {exc}")
-        return []
 
 
 @router.get(
@@ -149,104 +96,29 @@ async def search_stocks(
     q: str = Query(..., min_length=1, description="Ticker symbol or company name keyword"),
     db: Session = Depends(get_db),
 ) -> List[StockSearchItem]:
-    query_clean = q.strip()
-    query_lower = query_clean.lower()
+    from src.services.security_master import security_master
+    results = security_master.search(query=q, limit=15, db=db)
+    return [StockSearchItem(**r) for r in results]
 
-    # 1. Search local DB cache first (blazing fast <5ms)
-    stocks = stock_repository.search_stocks(db, query=query_clean)
-    results = []
-    for s in stocks:
-        exch = "NSE" if s.ticker.endswith(".NS") else ("BSE" if s.ticker.endswith(".BO") else "US")
-        curr = "INR" if s.ticker.endswith((".NS", ".BO")) else "USD"
-        results.append(StockSearchItem(
-            ticker=s.ticker,
-            company_name=s.company_name,
-            sector=s.sector,
-            exchange=exch,
-            currency=curr,
-        ))
-    existing_tickers = {r.ticker for r in results}
 
-    # 2. Match against curated popular list (instant local seed)
-    from src.services.stock_service import TICKER_ALIASES
-
-    for s in POPULAR_STOCKS:
-        if s["ticker"] not in existing_tickers:
-            raw_sym = s["ticker"].split(".")[0].lower()
-            is_alias_match = query_clean.upper() in TICKER_ALIASES and TICKER_ALIASES[query_clean.upper()] == s["ticker"]
-            if (
-                is_alias_match
-                or query_lower in s["ticker"].lower()
-                or query_lower in s["company_name"].lower()
-                or query_lower in raw_sym
-            ):
-                results.append(StockSearchItem(**s))
-                existing_tickers.add(s["ticker"])
-                try:
-                    stock_repository.upsert_stock(
-                        db=db,
-                        ticker=s["ticker"],
-                        company_name=s["company_name"],
-                        sector=s["sector"],
-                    )
-                except Exception:
-                    db.rollback()
-
-    # 3. Dynamic Live Yahoo Finance Search for any global/Indian share
-    if len(results) < 8 and len(query_clean) >= 2:
-        loop = asyncio.get_running_loop()
-        try:
-            live_items = await asyncio.wait_for(
-                loop.run_in_executor(None, _sync_live_yf_search, query_clean, 8),
-                timeout=2.5,
-            )
-            for item in live_items:
-                if item["ticker"] not in existing_tickers:
-                    results.append(StockSearchItem(**item))
-                    existing_tickers.add(item["ticker"])
-                    try:
-                        stock_repository.upsert_stock(
-                            db=db,
-                            ticker=item["ticker"],
-                            company_name=item["company_name"],
-                            sector=item["sector"],
-                        )
-                    except Exception:
-                        db.rollback()
-        except asyncio.TimeoutError:
-            logger.info(f"Live yfinance search timed out for query '{query_clean}'")
-        except Exception as exc:
-            logger.warning(f"Error querying live yfinance search: {exc}")
-
-    # 4. Sort results intelligently: exact match > starts with > contains
-    def rank_score(item: StockSearchItem) -> int:
-        ticker_u = item.ticker.upper()
-        raw_u = ticker_u.split(".")[0]
-        name_u = (item.company_name or "").upper()
-        qu = query_clean.upper()
-
-        if qu in TICKER_ALIASES:
-            aliased_target = TICKER_ALIASES[qu].upper()
-            if ticker_u == aliased_target or raw_u == aliased_target.split(".")[0]:
-                return -2
-            # Deprioritize foreign tickers that clash with prominent Indian symbols (e.g. US "SBI" fund)
-            if ticker_u == qu and "." not in ticker_u:
-                return 50
-
-        if ticker_u == qu or raw_u == qu:
-            return 0 if ticker_u.endswith((".NS", ".BO")) else 1
-        if ticker_u.startswith(qu) or raw_u.startswith(qu):
-            return 2 if ticker_u.endswith((".NS", ".BO")) else 3
-        if name_u.startswith(qu):
-            return 4
-        if qu in ticker_u:
-            return 5
-        if qu in name_u:
-            return 6
-        return 7
-
-    results.sort(key=rank_score)
-    return results[:15]
+@router.get(
+    "/resolve",
+    status_code=status.HTTP_200_OK,
+    summary="Resolve company name or bare ticker to canonical symbol",
+    description="Dynamically resolves any company name, colloquial brand, or bare ticker to its official exchange-qualified trading symbol.",
+)
+def resolve_stock(
+    q: str = Query(..., min_length=1, description="Company name or ticker to resolve"),
+    db: Session = Depends(get_db),
+):
+    from src.services.security_master import security_master
+    resolved = security_master.resolve(q, db=db)
+    return resolved or {
+        "ticker": q.upper().strip() if "." in q else f"{q.upper().strip()}.NS",
+        "company_name": q.strip(),
+        "exchange": "NSE" if q.upper().endswith(".NS") else "US",
+        "currency": "INR" if q.upper().endswith((".NS", ".BO")) else "USD",
+    }
 
 
 @router.get(

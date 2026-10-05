@@ -15,6 +15,7 @@ import {
   Globe,
   X,
   Activity,
+  RefreshCw,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import {
@@ -27,7 +28,8 @@ import { usePortfolios, usePortfolioDetail } from "../hooks/usePortfolios";
 import { StockChart } from "../components/StockChart";
 import { TransactionModal } from "../components/TransactionModal";
 import { toast } from "../store/toastStore";
-import { useCurrency } from "../utils/currency";
+import { useCurrency, getStockNativeCurrency } from "../utils/currency";
+import { searchStocksApi, resolveStockApi } from "../api/stocks";
 
 const TIMEFRAMES = [
   { label: "1D", days: 1 },
@@ -63,6 +65,8 @@ export const MarketExplorerPage = () => {
     currency,
     config: currentConfig,
     rates,
+    refreshRates,
+    isLoadingForex,
   } = useCurrency();
   const { selectedTicker, setSelectedTicker, setActiveTab } = useAuthStore();
   const [searchInput, setSearchInput] = useState("");
@@ -97,11 +101,16 @@ export const MarketExplorerPage = () => {
     usePortfolioDetail(activePortfolioId);
 
   // Market Queries
-  const { data: quote } = useStockQuote(selectedTicker);
+  const {
+    data: quote,
+    refetch: refetchQuote,
+    isFetching: isFetchingQuote,
+  } = useStockQuote(selectedTicker);
 
   const {
     data: history,
     isLoading: isLoadingHistory,
+    isFetching: isFetchingHistory,
     error: historyError,
     refetch: refetchHistory,
   } = useStockHistory(selectedTicker, selectedTimeframe.days);
@@ -110,15 +119,39 @@ export const MarketExplorerPage = () => {
 
   const { data: predictionData } = useStockPredictions(selectedTicker);
 
-  // Synchronize canonical ticker if backend resolved bare symbol (e.g. SJVN -> SJVN.NS)
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(() => new Date());
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (history?.data) {
+      setLastRefreshedAt(new Date());
+    }
+  }, [history?.data]);
+
+  const handleInstantRefresh = async () => {
+    if (isManualRefreshing) return;
+    setIsManualRefreshing(true);
+    try {
+      await Promise.all([
+        refetchHistory(),
+        refetchQuote(),
+      ]);
+      setLastRefreshedAt(new Date());
+      toast.success(`Market chart refreshed for ${selectedTicker}`);
+    } catch (err) {
+      toast.error("Failed to refresh chart data");
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  };
+
+  const isRefreshingChart = isManualRefreshing || isFetchingHistory || isFetchingQuote;
+
+  // Synchronize canonical ticker if backend resolved bare symbol or alias (e.g. SJVN -> SJVN.NS or RATTANINDIA POWER -> RTNPOWER.NS)
   useEffect(() => {
     const canonical = quote?.ticker || history?.ticker;
     if (canonical && canonical !== selectedTicker) {
-      const bareCanonical = canonical.split(".")[0].toUpperCase();
-      const bareSelected = selectedTicker.split(".")[0].toUpperCase();
-      if (bareCanonical === bareSelected) {
-        setSelectedTicker(canonical);
-      }
+      setSelectedTicker(canonical);
     }
   }, [quote?.ticker, history?.ticker, selectedTicker, setSelectedTicker]);
 
@@ -139,20 +172,35 @@ export const MarketExplorerPage = () => {
     setIsSearchOpen(false);
   };
 
-  const handleSearchSubmit = (e) => {
+  const handleSearchSubmit = async (e) => {
     e.preventDefault();
-    const query = searchInput.trim().toUpperCase();
+    const query = searchInput.trim();
     if (!query) return;
 
+    // 1. If searchResults has already loaded, match exact ticker or best company name
     if (searchResults && searchResults.length > 0) {
       const match = searchResults.find(
-        (s) => s.ticker.toUpperCase() === query || s.ticker.split(".")[0].toUpperCase() === query
+        (s) =>
+          s.ticker.toUpperCase() === query.toUpperCase() ||
+          s.ticker.split(".")[0].toUpperCase() === query.toUpperCase() ||
+          s.company_name.toLowerCase().includes(query.toLowerCase())
       ) || searchResults[0];
       handleSelectTicker(match.ticker);
       return;
     }
 
-    handleSelectTicker(query);
+    // 2. Dynamically resolve any company name or query via the Security Master
+    try {
+      const resolved = await resolveStockApi(query);
+      if (resolved && resolved.ticker) {
+        handleSelectTicker(resolved.ticker);
+        return;
+      }
+    } catch {
+      // Fall through
+    }
+
+    handleSelectTicker(query.toUpperCase());
   };
 
   const toggleWatchlist = (ticker) => {
@@ -388,58 +436,60 @@ export const MarketExplorerPage = () => {
                 <>
                   <div className="px-3.5 py-1.5 bg-white/5 flex items-center justify-between text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">
                     <span>Matching Shares ({searchResults.length})</span>
-                    <span>Live Global Results</span>
+                    <span>Live Exchange Results</span>
                   </div>
                   {searchResults.map((stock) => {
                     const isIndian = stock.ticker.endsWith(".NS") || stock.ticker.endsWith(".BO") || stock.currency === "INR" || stock.exchange === "NSE" || stock.exchange === "BSE";
                     const exchLabel = stock.exchange || (stock.ticker.endsWith(".NS") ? "NSE" : stock.ticker.endsWith(".BO") ? "BSE" : "US");
+                    const rawSymbol = stock.ticker.split(".")[0];
                     return (
                       <button
                         key={stock.ticker}
                         onClick={() => handleSelectTicker(stock.ticker)}
-                        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left cursor-pointer group"
+                        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left cursor-pointer group border-b border-white/5 last:border-b-0"
                       >
-                        <div className="flex items-center gap-2 truncate min-w-0">
-                          <span className="font-bold text-white text-xs shrink-0 group-hover:text-brand-emerald transition-colors font-mono">
-                            {stock.ticker}
-                          </span>
-                          <span className="text-xs text-brand-textSecondary truncate">
+                        <div className="flex flex-col min-w-0 mr-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-white text-xs group-hover:text-brand-emerald transition-colors font-mono">
+                              {stock.ticker}
+                            </span>
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider font-mono ${
+                                isIndian
+                                  ? "bg-orange-500/15 text-orange-400 border-orange-500/30"
+                                  : "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                              }`}
+                            >
+                              {exchLabel}
+                            </span>
+                            <span
+                              className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${
+                                isIndian ? "bg-emerald-500/10 text-brand-emerald" : "bg-slate-700/50 text-slate-300"
+                              }`}
+                            >
+                              {isIndian ? "₹ INR" : "$ USD"}
+                            </span>
+                          </div>
+                          <span className="text-xs text-brand-textSecondary group-hover:text-slate-200 transition-colors truncate mt-0.5 font-medium">
                             {stock.company_name}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                          <span
-                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono ${
-                              isIndian
-                                ? "bg-orange-500/15 text-orange-400 border-orange-500/30"
-                                : "bg-blue-500/15 text-blue-400 border-blue-500/30"
-                            }`}
-                          >
-                            {exchLabel}
-                          </span>
-                          <span
-                            className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
-                              isIndian ? "bg-emerald-500/10 text-brand-emerald" : "bg-slate-700/50 text-slate-300"
-                            }`}
-                          >
-                            {isIndian ? "₹ INR" : "$ USD"}
-                          </span>
-                          {stock.sector && (
-                            <span className="hidden md:inline-block text-[10px] text-brand-textMuted bg-white/5 px-2 py-0.5 rounded-full border border-white/5 truncate max-w-[120px]">
-                              {stock.sector}
-                            </span>
-                          )}
+                        <div className="shrink-0 flex items-center gap-1 text-[11px] text-brand-textMuted group-hover:text-brand-emerald transition-colors font-mono">
+                          <span>{rawSymbol}</span>
+                          <span>→</span>
                         </div>
                       </button>
                     );
                   })}
-                  <button
-                    onClick={() => handleSelectTicker(searchInput.trim().toUpperCase())}
-                    className="w-full px-4 py-2.5 bg-brand-surface/70 hover:bg-brand-emerald/15 text-left text-xs font-semibold text-brand-cyan hover:text-white flex items-center justify-between transition-colors cursor-pointer"
-                  >
-                    <span>Fetch & Explore <strong>{searchInput.trim().toUpperCase()}</strong> directly</span>
-                    <span>→</span>
-                  </button>
+                  {!searchInput.includes(" ") && searchInput.trim().length <= 10 && (
+                    <button
+                      onClick={() => handleSelectTicker(searchInput.trim().toUpperCase())}
+                      className="w-full px-4 py-2.5 bg-brand-surface/70 hover:bg-brand-emerald/15 text-left text-xs font-semibold text-brand-cyan hover:text-white flex items-center justify-between transition-colors cursor-pointer border-t border-white/10"
+                    >
+                      <span>Explore ticker symbol <strong>"{searchInput.trim().toUpperCase()}"</strong> directly</span>
+                      <span>→</span>
+                    </button>
+                  )}
                 </>
               ) : (
                 <div className="p-4 text-center space-y-2">
@@ -447,10 +497,19 @@ export const MarketExplorerPage = () => {
                     No instant match for "{searchInput}".
                   </div>
                   <button
-                    onClick={() => handleSelectTicker(searchInput.trim().toUpperCase())}
+                    onClick={async () => {
+                      try {
+                        const direct = await searchStocksApi(searchInput.trim());
+                        if (direct && direct.length > 0) {
+                          handleSelectTicker(direct[0].ticker);
+                          return;
+                        }
+                      } catch {}
+                      handleSelectTicker(searchInput.trim().toUpperCase());
+                    }}
                     className="px-3.5 py-1.5 rounded-xl bg-brand-emerald/20 hover:bg-brand-emerald/30 text-brand-emerald border border-brand-emerald/40 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
                   >
-                    <span>Load "{searchInput.trim().toUpperCase()}" Live From Market</span>
+                    <span>Search Exchanges for "{searchInput.trim()}"</span>
                     <span>→</span>
                   </button>
                 </div>
@@ -518,9 +577,12 @@ export const MarketExplorerPage = () => {
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight font-mono">
-                    {quote?.ticker || history?.ticker || selectedTicker}
+                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                    {quote?.company_name || history?.company_name || selectedTicker}
                   </h2>
+                  <span className="font-mono font-bold text-xs text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/25 px-2 py-0.5 rounded-md">
+                    {quote?.ticker || history?.ticker || selectedTicker}
+                  </span>
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider font-mono ${
                       effectiveExchange === "NSE"
@@ -534,9 +596,6 @@ export const MarketExplorerPage = () => {
                   </span>
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-brand-textMuted border border-white/5">
                     {effectiveCurrency}
-                  </span>
-                  <span className="text-xs text-brand-textMuted font-medium">
-                    {quote?.company_name || history?.company_name || "Company Profile"}
                   </span>
                   {(quote?.sector || history?.sector) && (
                     <span className="text-[10px] text-brand-textMuted bg-brand-surface px-2.5 py-0.5 rounded-md border border-white/5">
@@ -606,23 +665,44 @@ export const MarketExplorerPage = () => {
                 })}
               </div>
 
-              <div className="hidden sm:flex items-center gap-2 text-[11px] text-brand-textMuted font-mono">
-                {selectedTimeframe.label === "1D" ? (
-                  <>
-                    <span className="flex items-center gap-1.5 text-brand-emerald">
-                      <span className="w-2 h-2 rounded-full bg-brand-emerald animate-ping" />
-                      5-Min Intraday Session
-                    </span>
-                    <span className="w-1 h-1 rounded-full bg-white/20" />
-                    <span>Live Streaming</span>
-                  </>
-                ) : (
-                  <>
-                    <span>OHLCV Daily Bars</span>
-                    <span className="w-1 h-1 rounded-full bg-white/20" />
-                    <span className="text-brand-emerald font-semibold">Normalized Scale</span>
-                  </>
-                )}
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="hidden sm:flex items-center gap-2 text-[11px] text-brand-textMuted font-mono">
+                  {selectedTimeframe.label === "1D" ? (
+                    <>
+                      <span className="flex items-center gap-1.5 text-brand-emerald">
+                        <span className="w-2 h-2 rounded-full bg-brand-emerald animate-ping" />
+                        5-Min Live Session
+                      </span>
+                      <span className="w-1 h-1 rounded-full bg-white/20" />
+                      <span className="text-brand-textSecondary">Auto-sync 5m</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>OHLCV Daily Bars</span>
+                      <span className="w-1 h-1 rounded-full bg-white/20" />
+                      <span className="text-brand-emerald font-semibold">Auto-sync 5m</span>
+                    </>
+                  )}
+                  {lastRefreshedAt && (
+                    <>
+                      <span className="w-1 h-1 rounded-full bg-white/20 hidden md:inline-block" />
+                      <span className="text-[10px] text-brand-textMuted hidden md:inline-block">
+                        Updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Instant Manual Refresh Button */}
+                <button
+                  onClick={handleInstantRefresh}
+                  disabled={isRefreshingChart}
+                  title="Instant refresh chart & quotes (Background auto-refreshes every 5 mins)"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-surface hover:bg-brand-emerald/10 border border-brand-emerald/30 hover:border-brand-emerald/60 text-brand-emerald text-xs font-semibold shadow-sm transition-all cursor-pointer active:scale-95 disabled:opacity-60"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingChart ? "animate-spin" : ""}`} />
+                  <span>{isRefreshingChart ? "Refreshing..." : "Refresh Chart"}</span>
+                </button>
               </div>
             </div>
 
@@ -633,10 +713,12 @@ export const MarketExplorerPage = () => {
                 ticker={selectedTicker}
                 timeframe={selectedTimeframe.label}
                 previousClose={quote?.previous_close}
+                currentPrice={currentPrice}
+                lastRefreshedAt={lastRefreshedAt}
                 currency={effectiveCurrency}
                 isLoading={isLoadingHistory}
                 error={historyError}
-                onRetry={refetchHistory}
+                onRetry={handleInstantRefresh}
               />
             </div>
 
@@ -1001,6 +1083,18 @@ export const MarketExplorerPage = () => {
                   Global Forex Stream
                 </span>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  refreshRates();
+                  toast.info("Forex Syncing", "Refreshing real-time currency conversion rates...");
+                }}
+                title="Refresh Live Forex Rates"
+                className="p-1 hover:text-white transition-colors cursor-pointer text-brand-textMuted hover:bg-white/10 rounded-lg flex items-center gap-1.5 text-[10px] font-semibold"
+              >
+                <RefreshCw className={`w-3 h-3 ${isLoadingForex ? "animate-spin text-brand-cyan" : ""}`} />
+                <span>Sync</span>
+              </button>
             </div>
 
             <div className="space-y-2 text-xs pt-1">
@@ -1010,7 +1104,7 @@ export const MarketExplorerPage = () => {
                   <span className="text-[10px] text-brand-textMuted">Live FX</span>
                 </div>
                 <span className="font-mono font-bold text-brand-emerald">
-                  ₹{rates?.INR ? (rates.INR).toFixed(2) : "88.85"}
+                  ₹{rates?.INR ? (rates.INR).toFixed(2) : "96.28"}
                 </span>
               </div>
 

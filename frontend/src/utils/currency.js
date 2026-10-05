@@ -8,9 +8,9 @@ export { SUPPORTED_CURRENCIES };
  */
 export const DEFAULT_EXCHANGE_RATES = {
   USD: 1.0,
-  INR: 83.5,
-  EUR: 0.92,
-  GBP: 0.79,
+  INR: 96.28,
+  EUR: 0.8935,
+  GBP: 0.7567,
 };
 
 /**

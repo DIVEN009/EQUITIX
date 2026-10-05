@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { LogOut, User, ChevronDown, Check, Briefcase, TrendingUp, Sparkles } from "lucide-react";
+import { LogOut, User, ChevronDown, Check, Briefcase, TrendingUp, Sparkles, RefreshCw } from "lucide-react";
 import { BrandLogo } from "./BrandLogo";
 import { useAuthStore } from "../store/authStore";
 import { useCurrency, SUPPORTED_CURRENCIES } from "../utils/currency";
@@ -12,6 +12,8 @@ export const Header = () => {
     setCurrency,
     config: currentConfig,
     rates,
+    refreshRates,
+    isLoadingForex,
   } = useCurrency();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -119,8 +121,20 @@ export const Header = () => {
                 <div className="mt-1.5 pt-2 border-t border-white/10 px-2 py-1 text-[10px] text-brand-textMuted flex items-center justify-between font-mono">
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald animate-pulse" />
-                    <span>Live 1 USD ≈ ₹{(rates?.INR || 83.5).toFixed(2)}</span>
+                    <span>Live 1 USD ≈ ₹{(rates?.INR || 96.28).toFixed(2)}</span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      refreshRates();
+                      toast.info("Forex Syncing", "Retrieving real-time market exchange rates...");
+                    }}
+                    title="Refresh Live Forex Rates"
+                    className="p-1 hover:text-white transition-colors cursor-pointer text-brand-textMuted hover:bg-white/10 rounded-md"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isLoadingForex ? "animate-spin text-brand-emerald" : ""}`} />
+                  </button>
                 </div>
               </div>
             )}

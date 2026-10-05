@@ -37,6 +37,18 @@ export const searchStocksApi = async (query) => {
 };
 
 /**
+ * Dynamically resolve any company name, brand, or bare ticker to its canonical exchange symbol.
+ * @param {string} query
+ */
+export const resolveStockApi = async (query) => {
+  if (!query || !query.trim()) return null;
+  const response = await apiClient.get("/stocks/resolve", {
+    params: { q: query.trim() },
+  });
+  return response.data;
+};
+
+/**
  * Fetch ML forecast predictions for the ticker (LSTM & Linear Regression).
  * @param {string} ticker - e.g. "AAPL"
  */

@@ -36,7 +36,8 @@ export const useStockHistory = (ticker, days = 30) => {
     queryKey: ["stockHistory", normalizedTicker, days],
     queryFn: () => fetchStockHistoryApi(normalizedTicker, days),
     enabled: Boolean(normalizedTicker),
-    staleTime: 1000 * 60 * 3, // 3 minutes fresh
+    staleTime: 1000 * 60 * 2, // 2 minutes fresh
+    refetchInterval: 1000 * 60 * 5, // 5 minutes background auto-refresh
     retry: 1,
   });
 };
