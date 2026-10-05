@@ -91,14 +91,14 @@ def run_inference_for_ticker(ticker: str) -> Dict[str, Any]:
     X_input_lstm = X_latest_scaled.reshape(1, LOOKBACK, len(feature_cols))
     X_input_baseline = X_latest_scaled.reshape(1, -1)
 
-    # 4. Generate 7-day Predictions
+    # 4. Generate 7-day Predictions (reconstructed from relative returns anchored to today's Close)
     # Baseline
-    y_pred_baseline_scaled = baseline_model.predict(X_input_baseline)
-    y_pred_baseline = target_scaler.inverse_transform(y_pred_baseline_scaled).flatten()
+    y_pred_baseline_returns = baseline_model.predict(X_input_baseline).flatten()
+    y_pred_baseline = [latest_close_price * (1.0 + float(r)) for r in y_pred_baseline_returns]
 
     # LSTM
-    y_pred_lstm_scaled = lstm_model.predict(X_input_lstm)
-    y_pred_lstm = target_scaler.inverse_transform(y_pred_lstm_scaled).flatten()
+    y_pred_lstm_returns = lstm_model.predict(X_input_lstm).flatten()
+    y_pred_lstm = [latest_close_price * (1.0 + float(r)) for r in y_pred_lstm_returns]
 
     # 5. Determine target forecast dates
     forecast_dates = get_next_trading_days(latest_trading_date, count=HORIZON)

@@ -23,51 +23,15 @@ from src.schemas.stock_schema import (
 
 logger = logging.getLogger(__name__)
 
+from src.services.security_master import security_master
+
 YFINANCE_TIMEOUT_SECONDS = 5.0
-
-
-TICKER_ALIASES = {
-    "SBI": "SBIN.NS",
-    "SBIN": "SBIN.NS",
-    "TATAMOTORS": "TMCV.NS",
-    "TATAMOTORS.NS": "TMCV.NS",
-    "TATAMTR": "TMCV.NS",
-    "HDFC": "HDFCBANK.NS",
-    "ICICI": "ICICIBANK.NS",
-    "KOTAK": "KOTAKBANK.NS",
-    "AXIS": "AXISBANK.NS",
-    "AIRTEL": "BHARTIARTL.NS",
-    "BAJAJ": "BAJFINANCE.NS",
-    "MARUTI": "MARUTI.NS",
-    "RELIANCE": "RELIANCE.NS",
-    "TCS": "TCS.NS",
-    "INFY": "INFY.NS",
-    "INFOSYS": "INFY.NS",
-    "WIPRO": "WIPRO.NS",
-    "L&T": "LT.NS",
-    "LT": "LT.NS",
-    "M&M": "M&M.NS",
-    "MM": "M&M.NS",
-    "ASIANPAINTS": "ASIANPAINT.NS",
-    "ASIANPAINT": "ASIANPAINT.NS",
-    "SUNPHARMA": "SUNPHARMA.NS",
-    "TITAN": "TITAN.NS",
-    "NHPC": "NHPC.NS",
-    "IRFC": "IRFC.NS",
-    "NTPC": "NTPC.NS",
-    "ONGC": "ONGC.NS",
-    "POWERGRID": "POWERGRID.NS",
-    "COALINDIA": "COALINDIA.NS",
-    "ZOMATO": "ETERNAL.NS",
-    "ZOMATO.NS": "ETERNAL.NS",
-    "ADANI": "ADANIENT.NS",
-}
 
 
 class StockService:
     """
     Business logic layer for Stock Market operations.
-    Implements yfinance integration with smart ticker canonicalization,
+    Implements yfinance integration with dynamic security master resolution,
     resilient timeouts, and PostgreSQL fallback caching.
     """
 
@@ -76,57 +40,18 @@ class StockService:
 
     def resolve_canonical_ticker(self, ticker: str, db: Optional[Session] = None) -> str:
         """
-        Auto-resolves bare ticker symbols to their exchange-qualified canonical symbols
-        (e.g., NHPC -> NHPC.NS, RELIANCE -> RELIANCE.NS, AAPL -> AAPL).
+        Dynamically auto-resolves bare ticker symbols or company names to their official
+        exchange-qualified canonical symbol using the dynamic Security Master.
         """
+        if not ticker or not ticker.strip():
+            return "RELIANCE.NS"
+
+        resolved = security_master.resolve(ticker, db=db)
+        if resolved and resolved.get("ticker"):
+            return resolved["ticker"]
+
         ticker_clean = ticker.upper().strip()
-        if ticker_clean in TICKER_ALIASES:
-            return TICKER_ALIASES[ticker_clean]
-
-        if "." in ticker_clean or "-" in ticker_clean or "=" in ticker_clean:
-            return ticker_clean
-
-        # 1. Fast DB check
-        if db:
-            stock = self.repo.get_stock(db, ticker_clean)
-            if stock:
-                return stock.ticker
-
-        # 2. Check popular curated stocks
-        from src.api.v1.stock_router import POPULAR_STOCKS
-        for s in POPULAR_STOCKS:
-            raw_sym = s["ticker"].split(".")[0].upper()
-            if raw_sym == ticker_clean:
-                return s["ticker"]
-
-        # 3. Check if Indian National Stock Exchange (NSE) ticker exists (.NS)
-        try:
-            t_ns = yf.Ticker(f"{ticker_clean}.NS")
-            fast = getattr(t_ns, "fast_info", None)
-            if fast and (fast.get("lastPrice") or fast.get("last_price")):
-                return f"{ticker_clean}.NS"
-        except Exception:
-            pass
-
-        # 4. Check if US / Global exchange ticker exists
-        try:
-            t_us = yf.Ticker(ticker_clean)
-            fast = getattr(t_us, "fast_info", None)
-            if fast and (fast.get("lastPrice") or fast.get("last_price")):
-                return ticker_clean
-        except Exception:
-            pass
-
-        # 5. Check if Bombay Stock Exchange (BSE) ticker exists (.BO)
-        try:
-            t_bo = yf.Ticker(f"{ticker_clean}.BO")
-            fast = getattr(t_bo, "fast_info", None)
-            if fast and (fast.get("lastPrice") or fast.get("last_price")):
-                return f"{ticker_clean}.BO"
-        except Exception:
-            pass
-
-        return ticker_clean
+        return ticker_clean if "." in ticker_clean else f"{ticker_clean}.NS"
 
     def _sync_yfinance_fetch(self, ticker: str, days: int = 365) -> Optional[Dict[str, Any]]:
         """
@@ -654,7 +579,7 @@ class StockService:
         """
         Retrieve offline-generated ML predictions for a ticker.
         """
-        ticker_clean = ticker.upper().strip()
+        ticker_clean = self.resolve_canonical_ticker(ticker, db)
         predictions = self.repo.get_predictions(db, ticker_clean)
         return StockPredictionsResponse(
             ticker=ticker_clean,
@@ -674,7 +599,7 @@ class StockService:
         Retrieve offline validation benchmarks (RMSE, Directional Accuracy, samples)
         from model training artifacts.
         """
-        ticker_clean = ticker.upper().strip()
+        ticker_clean = self.resolve_canonical_ticker(ticker)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
         benchmarks_path = os.path.join(project_root, "ml_pipeline", "saved_models", "benchmarks.json")
@@ -730,25 +655,28 @@ class StockService:
 
     def get_live_forex_rates(self) -> Dict[str, Any]:
         """
-        Fetch real-time forex exchange rates against USD with 5-minute in-memory caching.
-        Pairs: USDINR=X, EURUSD=X, GBPUSD=X.
+        Fetch real-time forex exchange rates against USD with 2-minute in-memory caching.
+        Pairs: USDINR=X / INR=X, EURUSD=X, GBPUSD=X.
         """
         import time
         from datetime import datetime, timezone
         now = time.time()
-        if self._forex_cache and (now - self._forex_cache_time < 300):
+        if self._forex_cache and (now - self._forex_cache_time < 120):
             return self._forex_cache
 
         rates = {
             "USD": 1.0,
-            "INR": 83.50,
-            "EUR": 0.92,
-            "GBP": 0.79,
+            "INR": 96.28,
+            "EUR": 0.8935,
+            "GBP": 0.7567,
         }
         try:
             t_inr = yf.Ticker("USDINR=X")
             price_inr = getattr(t_inr.fast_info, "last_price", None)
-            if price_inr:
+            if not price_inr:
+                t_inr2 = yf.Ticker("INR=X")
+                price_inr = getattr(t_inr2.fast_info, "last_price", None)
+            if price_inr and float(price_inr) > 0:
                 rates["INR"] = round(float(price_inr), 4)
 
             t_eur = yf.Ticker("EURUSD=X")

@@ -71,22 +71,27 @@ def train_and_evaluate_ticker(
     joblib.dump({"feature_scaler": feat_scaler, "target_scaler": target_scaler, "features": FEATURE_COLUMNS}, scaler_path)
     logger.info(f"Saved feature and target scalers to {scaler_path}")
 
-    # 4. Create 60-day sequences -> 7-day targets
-    # Extract target Close prices for training sequences
-    train_targets_scaled = target_scaler.transform(train_df[["Close"]].values)
-    val_targets_scaled = target_scaler.transform(val_df[["Close"]].values)
-    test_targets_scaled = target_scaler.transform(test_df[["Close"]].values)
+    # 4. Create 60-day sequences -> 7-day relative return targets
+    # Passing unscaled Close prices ensures stationary percentage returns (P_future - P_t) / P_t
+    train_close = train_df["Close"].values
+    val_close = val_df["Close"].values
+    test_close = test_df["Close"].values
 
-    X_train, y_train = create_sliding_sequences(X_train_scaled, train_targets_scaled, lookback=LOOKBACK, horizon=HORIZON)
-    X_val, y_val = create_sliding_sequences(X_val_scaled, val_targets_scaled, lookback=LOOKBACK, horizon=HORIZON)
-    X_test, y_test = create_sliding_sequences(X_test_scaled, test_targets_scaled, lookback=LOOKBACK, horizon=HORIZON)
+    X_train, y_train = create_sliding_sequences(X_train_scaled, train_close, lookback=LOOKBACK, horizon=HORIZON, use_relative_returns=True)
+    X_val, y_val = create_sliding_sequences(X_val_scaled, val_close, lookback=LOOKBACK, horizon=HORIZON, use_relative_returns=True)
+    X_test, y_test = create_sliding_sequences(X_test_scaled, test_close, lookback=LOOKBACK, horizon=HORIZON, use_relative_returns=True)
 
     logger.info(f"Sequences generated -> X_train: {X_train.shape}, y_train: {y_train.shape} | X_test: {X_test.shape}")
 
-    # Reference prices for Directional Accuracy (last known close of lookback window)
-    test_last_known_scaled = X_test[:, -1, FEATURE_COLUMNS.index("Close")].reshape(-1, 1)
-    test_last_known_price = target_scaler.inverse_transform(test_last_known_scaled)
-    y_test_actual_price = target_scaler.inverse_transform(y_test)
+    # Anchor prices for test evaluation: the Close price of the last step of each lookback window
+    test_anchors = np.array([
+        test_close[i + LOOKBACK - 1] for i in range(len(X_test))
+    ], dtype=np.float32)[:, np.newaxis]
+
+    # Ground truth future dollar prices
+    y_test_actual_price = np.array([
+        test_close[i + LOOKBACK : i + LOOKBACK + HORIZON] for i in range(len(X_test))
+    ], dtype=np.float32)
 
     # 5. Train Baseline Linear Regression
     logger.info(f"Training Baseline Linear Regression for {ticker_clean}...")
@@ -96,12 +101,12 @@ def train_and_evaluate_ticker(
     baseline_path = os.path.join(SAVED_MODELS_DIR, f"{ticker_clean}_baseline.pkl")
     baseline_model.save(baseline_path)
 
-    # Evaluate Baseline
-    y_pred_baseline_scaled = baseline_model.predict(X_test)
-    y_pred_baseline_price = target_scaler.inverse_transform(y_pred_baseline_scaled)
+    # Evaluate Baseline (Reconstruct dollar prices from predicted relative returns)
+    y_pred_baseline_returns = baseline_model.predict(X_test)
+    y_pred_baseline_price = test_anchors * (1.0 + y_pred_baseline_returns)
 
     baseline_rmse = round(calculate_rmse(y_test_actual_price, y_pred_baseline_price), 2)
-    baseline_dir_acc = calculate_directional_accuracy(y_test_actual_price, y_pred_baseline_price, test_last_known_price)
+    baseline_dir_acc = calculate_directional_accuracy(y_test_actual_price, y_pred_baseline_price, test_anchors.flatten())
 
     # 6. Train TensorFlow / Keras LSTM
     logger.info(f"Training Primary LSTM Model for {ticker_clean} ({epochs} epochs)...")
@@ -125,12 +130,12 @@ def train_and_evaluate_ticker(
         verbose=1,
     )
 
-    # Evaluate LSTM
-    y_pred_lstm_scaled = lstm_model.predict(X_test)
-    y_pred_lstm_price = target_scaler.inverse_transform(y_pred_lstm_scaled)
+    # Evaluate LSTM (Reconstruct dollar prices from predicted relative returns)
+    y_pred_lstm_returns = lstm_model.predict(X_test)
+    y_pred_lstm_price = test_anchors * (1.0 + y_pred_lstm_returns)
 
     lstm_rmse = round(calculate_rmse(y_test_actual_price, y_pred_lstm_price), 2)
-    lstm_dir_acc = calculate_directional_accuracy(y_test_actual_price, y_pred_lstm_price, test_last_known_price)
+    lstm_dir_acc = calculate_directional_accuracy(y_test_actual_price, y_pred_lstm_price, test_anchors.flatten())
 
     report = {
         "ticker": ticker_clean,

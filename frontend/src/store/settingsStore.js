@@ -38,10 +38,12 @@ export const SUPPORTED_CURRENCIES = {
 
 const DEFAULT_RATES = {
   USD: 1.0,
-  INR: 83.5,
-  EUR: 0.92,
-  GBP: 0.79,
+  INR: 96.28,
+  EUR: 0.8935,
+  GBP: 0.7567,
 };
+
+const FOREX_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 const getStoredCurrency = () => {
   try {
@@ -55,9 +57,12 @@ const getStoredCurrency = () => {
 const getStoredRates = () => {
   try {
     const raw = localStorage.getItem("equitix_forex_rates");
+    const rawTime = localStorage.getItem("equitix_forex_timestamp");
     if (raw) {
+      const age = rawTime ? Date.now() - Number(rawTime) : Infinity;
       const parsed = JSON.parse(raw);
-      if (parsed?.INR && parsed?.EUR && parsed?.GBP) {
+      // Discard stale rates older than 10 mins or outdated pre-90 INR rates
+      if (age < FOREX_TTL_MS && parsed?.INR && parsed.INR > 90 && parsed?.EUR && parsed?.GBP) {
         return parsed;
       }
     }
@@ -99,12 +104,13 @@ export const useSettingsStore = create((set, get) => ({
       if (res?.data?.rates) {
         const liveRates = {
           USD: 1.0,
-          INR: Number(res.data.rates.INR) || 83.5,
-          EUR: Number(res.data.rates.EUR) || 0.92,
-          GBP: Number(res.data.rates.GBP) || 0.79,
+          INR: Number(res.data.rates.INR) || 96.28,
+          EUR: Number(res.data.rates.EUR) || 0.8935,
+          GBP: Number(res.data.rates.GBP) || 0.7567,
         };
         try {
           localStorage.setItem("equitix_forex_rates", JSON.stringify(liveRates));
+          localStorage.setItem("equitix_forex_timestamp", String(Date.now()));
         } catch {
           // Ignore storage errors
         }
@@ -123,12 +129,13 @@ export const useSettingsStore = create((set, get) => ({
         if (data?.rates) {
           const liveRates = {
             USD: 1.0,
-            INR: Number(data.rates.INR) || 83.5,
-            EUR: Number(data.rates.EUR) || 0.92,
-            GBP: Number(data.rates.GBP) || 0.79,
+            INR: Number(data.rates.INR) || 96.28,
+            EUR: Number(data.rates.EUR) || 0.8935,
+            GBP: Number(data.rates.GBP) || 0.7567,
           };
           try {
             localStorage.setItem("equitix_forex_rates", JSON.stringify(liveRates));
+            localStorage.setItem("equitix_forex_timestamp", String(Date.now()));
           } catch {
             // Ignore storage errors
           }

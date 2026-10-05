@@ -113,16 +113,16 @@ export const AuthPage = ({ onSuccess }) => {
         } bg-[#0a0f1d]/50 backdrop-blur-2xl rounded-3xl p-8 shadow-[0_16px_48px_rgba(0,0,0,0.55)] relative z-10 border border-white/15 overflow-hidden transition-all duration-300 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-brand-emerald/40 before:to-transparent`}
       >
         {/* Brand header */}
-        <div className="flex flex-col items-center text-center mb-7">
-          <div className="mb-4">
-            <BrandLogo size="lg" />
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className="mb-3">
+            <BrandLogo size="lg" layout="vertical" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-white mt-1">
-            {mode === "login" ? "Welcome back to Equitix" : "Create Equitix Account"}
+          <h1 className="text-lg font-bold tracking-tight text-white mt-1">
+            {mode === "login" ? "Sign in to your account" : "Create your workspace"}
           </h1>
           <p className="text-xs text-brand-textMuted mt-1">
             {mode === "login"
-              ? "AI-powered precision financial analytics & quantitative modeling"
+              ? "Precision financial analytics & quantitative modeling"
               : "Set up your institutional quantitative workspace and analytics suite"}
           </p>
         </div>

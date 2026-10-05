@@ -131,25 +131,37 @@ def create_sliding_sequences(
     target_prices: np.ndarray,
     lookback: int = 60,
     horizon: int = 7,
+    use_relative_returns: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Generates supervised sliding window sequences:
     Input X: Past `lookback` (60) trading days of multidimensional features.
-    Target y: Future `horizon` (7) trading days of Close price.
-    Returns:
-    X: shape (samples, lookback, num_features)
-    y: shape (samples, horizon)
+    Target y: Future `horizon` (7) trading days of relative percentage returns
+              relative to the final lookback day anchor price (P_t).
+
+    When use_relative_returns is True:
+      relative_returns = (future_prices - anchor_price) / anchor_price
+      This enforces stationarity, eliminates non-stationary level shifts,
+      and prevents extreme out-of-scale forecasting drops.
     """
     X_list, y_list = [], []
     num_samples = len(feature_data) - lookback - horizon + 1
-    
+    target_flat = np.asarray(target_prices, dtype=np.float32).flatten()
+
     for i in range(num_samples):
         # Window of previous 60 days
         X_window = feature_data[i : i + lookback]
         # Target of next 7 days
-        y_target = target_prices[i + lookback : i + lookback + horizon]
-        
+        y_target = target_flat[i + lookback : i + lookback + horizon]
+
+        if use_relative_returns:
+            anchor_price = float(target_flat[i + lookback - 1])
+            denom = anchor_price if abs(anchor_price) > 1e-8 else 1.0
+            relative_returns = (y_target - anchor_price) / denom
+            y_list.append(relative_returns.astype(np.float32))
+        else:
+            y_list.append(y_target.astype(np.float32))
+
         X_list.append(X_window)
-        y_list.append(y_target.flatten())
-        
+
     return np.array(X_list, dtype=np.float32), np.array(y_list, dtype=np.float32)

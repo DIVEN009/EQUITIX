@@ -77,10 +77,25 @@ def test_stock_search():
     assert any(s["ticker"] == "AAPL" for s in results)
 
 
+def test_security_master_resolve():
+    # Test resolving company name to NSE ticker
+    resp = client.get("/api/v1/stocks/resolve?q=RattanIndia Power")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ticker"] == "RTNPOWER.NS"
+    assert "RattanIndia" in data["company_name"]
+
+    # Test resolving symbol directly
+    resp = client.get("/api/v1/stocks/resolve?q=RTNPOWER")
+    assert resp.status_code == 200
+    assert resp.json()["ticker"] == "RTNPOWER.NS"
+
+
 def test_stock_predictions():
     # Insert a dummy prediction to verify endpoint
     db = SessionLocal()
     test_date = date.today() + timedelta(days=1)
+    pred_id = None
     try:
         # Ensure stock exists first
         stock = db.query(Stock).filter(Stock.ticker == "AAPL").first()
@@ -98,16 +113,20 @@ def test_stock_predictions():
         )
         db.add(pred)
         db.commit()
-    finally:
-        db.close()
+        pred_id = pred.id
 
-    response = client.get("/api/v1/stocks/AAPL/predictions")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["ticker"] == "AAPL"
-    assert len(data["predictions"]) > 0
-    assert any(p["model_name"] in ["LSTM_v1", "LinearReg_v1"] for p in data["predictions"])
-    assert any(p["predicted_price"] > 0 for p in data["predictions"])
+        response = client.get("/api/v1/stocks/AAPL/predictions")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ticker"] == "AAPL"
+        assert len(data["predictions"]) > 0
+        assert any(p["model_name"] in ["LSTM_v1", "LinearReg_v1"] for p in data["predictions"])
+        assert any(p["predicted_price"] > 0 for p in data["predictions"])
+    finally:
+        if pred_id:
+            db.query(Prediction).filter(Prediction.id == pred_id).delete()
+            db.commit()
+        db.close()
 
 
 def test_nonexistent_stock():

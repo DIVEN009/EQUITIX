@@ -216,6 +216,8 @@ export const StockChart = ({
   ticker = "",
   timeframe = "1M",
   previousClose = null,
+  currentPrice = null,
+  lastRefreshedAt = null,
   currency: stockCurrency = null,
   isLoading = false,
   error = null,
@@ -228,6 +230,11 @@ export const StockChart = ({
   const convertedPrevClose =
     previousClose != null && !isNaN(previousClose) && Number(previousClose) > 0
       ? Number((Number(previousClose) * conversionRate).toFixed(2))
+      : null;
+
+  const convertedCurrentPrice =
+    currentPrice != null && !isNaN(currentPrice) && Number(currentPrice) > 0
+      ? Number((Number(currentPrice) * conversionRate).toFixed(2))
       : null;
 
   const is1D =
@@ -274,40 +281,81 @@ export const StockChart = ({
 
     let processedData = activeData;
 
-    // For 1D intraday mode, anchor the continuous line/area curve to the session opening price tick
-    if (is1D && activeData.length > 0 && chartMode !== "candles") {
-      const firstBar = activeData[0];
-      if (firstBar && firstBar.open != null && firstBar.open !== firstBar.close) {
-        let intervalMs = 5 * 60 * 1000;
-        if (activeData.length > 1) {
-          const t0 = new Date(activeData[0].date).getTime();
-          const t1 = new Date(activeData[1].date).getTime();
-          if (!isNaN(t0) && !isNaN(t1) && t1 > t0 && t1 - t0 <= 30 * 60 * 1000) {
-            intervalMs = t1 - t0;
-          }
-        }
+    // Handle 1D intraday timestamps and anchor the latest live tick to the exact refresh time
+    if (is1D && activeData.length > 0) {
+      const lastBar = activeData[activeData.length - 1];
+      const lastBarTime = new Date(lastBar.date).getTime();
+      const refreshDate = lastRefreshedAt ? new Date(lastRefreshedAt) : new Date();
+      const refreshTime = refreshDate.getTime();
 
-        const shiftedBars = activeData.map((d) => {
-          const t = new Date(d.date).getTime();
-          if (!isNaN(t)) {
-            return {
-              ...d,
-              date: new Date(t + intervalMs).toISOString(),
+      const isSameDay =
+        !isNaN(lastBarTime) &&
+        !isNaN(refreshTime) &&
+        new Date(lastBarTime).toDateString() === refreshDate.toDateString();
+
+      if (isSameDay) {
+        const livePrice = convertedCurrentPrice ?? lastBar.close;
+        const refreshIso = refreshDate.toISOString();
+
+        if (chartMode !== "candles") {
+          // If the last bar from backend/yfinance has a timestamp rounded to the future interval (e.g. 1:35 when refresh is 1:32),
+          // clamp the last bar's timestamp to the exact refresh time!
+          if (lastBarTime > refreshTime) {
+            processedData = activeData.map((d, idx) =>
+              idx === activeData.length - 1
+                ? {
+                    ...d,
+                    date: refreshIso,
+                    close: livePrice,
+                    high: Math.max(d.high || livePrice, livePrice),
+                    low: Math.min(d.low || livePrice, livePrice),
+                    isLiveTick: true,
+                  }
+                : d
+            );
+          } else if (refreshTime > lastBarTime + 45 * 1000) {
+            // If the user refreshes between 5-minute candles (e.g. 1:32 when last candle was 1:30),
+            // append the live tick at the EXACT refresh timestamp (1:32)!
+            const liveTick = {
+              date: refreshIso,
+              open: lastBar.close,
+              high: Math.max(lastBar.close, livePrice),
+              low: Math.min(lastBar.close, livePrice),
+              close: livePrice,
+              volume: 0,
+              isLiveTick: true,
             };
+            processedData = [...activeData, liveTick];
+          } else {
+            // Within the same minute: update the last bar with the live refreshed price and timestamp
+            processedData = activeData.map((d, idx) =>
+              idx === activeData.length - 1
+                ? {
+                    ...d,
+                    date: refreshIso,
+                    close: livePrice,
+                    high: Math.max(d.high || livePrice, livePrice),
+                    low: Math.min(d.low || livePrice, livePrice),
+                    isLiveTick: true,
+                  }
+                : d
+            );
           }
-          return d;
-        });
-
-        const openPoint = {
-          ...firstBar,
-          close: firstBar.open,
-          high: firstBar.open,
-          low: firstBar.open,
-          volume: 0,
-          isSessionOpenAnchor: true,
-        };
-
-        processedData = [openPoint, ...shiftedBars];
+        } else {
+          // In candles mode: update the current ongoing candle with live price and clamp timestamp
+          processedData = activeData.map((d, idx) =>
+            idx === activeData.length - 1
+              ? {
+                  ...d,
+                  close: livePrice,
+                  high: Math.max(d.high || livePrice, livePrice),
+                  low: Math.min(d.low || livePrice, livePrice),
+                  date: lastBarTime > refreshTime ? refreshIso : d.date,
+                  isLiveTick: true,
+                }
+              : d
+          );
+        }
       }
     }
 
@@ -367,7 +415,7 @@ export const StockChart = ({
       periodChangePercent: changePct,
       isPositive: change >= 0,
     };
-  }, [data, conversionRate, convertedPrevClose, is1D, chartMode]);
+  }, [data, conversionRate, convertedPrevClose, convertedCurrentPrice, lastRefreshedAt, is1D, chartMode]);
 
   const themeColor = isPositive ? "#00F59B" : "#EF4444";
   const gradientId = `stockGradient_${ticker}_${isPositive ? "up" : "down"}`;

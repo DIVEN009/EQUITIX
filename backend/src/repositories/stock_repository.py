@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from typing import List, Optional, Dict, Any
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -124,12 +125,25 @@ class StockRepository:
         return len(prepared_records)
 
     def get_predictions(self, db: Session, ticker: str) -> List[Prediction]:
-        return (
-            db.query(Prediction)
-            .filter(Prediction.ticker == ticker.upper().strip())
-            .order_by(Prediction.target_date.asc())
-            .all()
-        )
+        """
+        Retrieve offline-generated ML predictions for a ticker.
+        Uses native PostgreSQL DISTINCT ON (model_name, target_date) ordered by generated_at DESC
+        to guarantee only the freshest production predictions are returned and older
+        stale runs or test artifacts are automatically excluded.
+        """
+        ticker_clean = ticker.upper().strip()
+        stmt = text("""
+            SELECT DISTINCT ON (model_name, target_date)
+                id, ticker, model_name, target_date, predicted_price, generated_at
+            FROM predictions
+            WHERE ticker = :ticker
+            ORDER BY model_name, target_date, generated_at DESC
+        """)
+        records = db.query(Prediction).from_statement(stmt).params(ticker=ticker_clean).all()
+        today = date.today()
+        upcoming = [p for p in records if p.target_date >= today]
+        active_records = upcoming if upcoming else records
+        return sorted(active_records, key=lambda p: (p.target_date, p.model_name))
 
 
 stock_repository = StockRepository()

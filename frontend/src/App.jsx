@@ -19,8 +19,14 @@ const queryClient = new QueryClient({
   },
 });
 
+import { useSettingsStore } from "./store/settingsStore";
+
 function MainApp() {
   const { isAuthenticated, activeTab } = useAuthStore();
+
+  React.useEffect(() => {
+    useSettingsStore.getState().fetchLiveForexRates();
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return <AuthPage />;
