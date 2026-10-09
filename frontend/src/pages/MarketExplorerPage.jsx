@@ -53,6 +53,7 @@ const POPULAR_TICKERS = [
   "MARUTI.NS",
   "BAJFINANCE.NS",
   "IRFC.NS",
+  "ALOKINDS.NS",
   "AAPL",
   "NVDA",
   "TSLA",
@@ -105,6 +106,7 @@ export const MarketExplorerPage = () => {
     data: quote,
     refetch: refetchQuote,
     isFetching: isFetchingQuote,
+    error: quoteError,
   } = useStockQuote(selectedTicker);
 
   const {
@@ -200,7 +202,9 @@ export const MarketExplorerPage = () => {
       // Fall through
     }
 
-    handleSelectTicker(query.toUpperCase());
+    // Clean ticker: no spaces allowed in valid tickers
+    const cleanSym = query.replace(/\s+/g, "").toUpperCase();
+    handleSelectTicker(cleanSym.includes(".") ? cleanSym : `${cleanSym}.NS`);
   };
 
   const toggleWatchlist = (ticker) => {
@@ -630,12 +634,18 @@ export const MarketExplorerPage = () => {
               <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1.5">
                 <span
                   className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                    quote?.source === "live"
+                    quoteError || historyError
+                      ? "bg-red-500/10 text-red-400 border-red-500/30"
+                      : quote?.source === "live"
                       ? "bg-emerald-500/10 text-brand-emerald border-brand-emerald/30 shadow-sm"
                       : "bg-amber-500/10 text-amber-400 border-amber-500/30"
                   }`}
                 >
-                  {quote?.source === "live" ? "● Live Stream" : "Cached DB"}
+                  {quoteError || historyError
+                    ? "● Unavailable"
+                    : quote?.source === "live"
+                    ? "● Live Stream"
+                    : "Cached DB"}
                 </span>
                 <span className="text-[10px] text-brand-textMuted flex items-center gap-1 font-mono">
                   <Clock className="w-3 h-3" />
@@ -719,6 +729,7 @@ export const MarketExplorerPage = () => {
                 isLoading={isLoadingHistory}
                 error={historyError}
                 onRetry={handleInstantRefresh}
+                onSelectTicker={handleSelectTicker}
               />
             </div>
 
@@ -992,10 +1003,11 @@ export const MarketExplorerPage = () => {
             <div className="space-y-2.5">
               <button
                 onClick={() => setIsTxModalOpen(true)}
-                className="w-full btn-emerald-glow py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 shadow-emeraldGlow cursor-pointer"
+                disabled={!currentPrice || quoteError || historyError}
+                className="w-full btn-emerald-glow py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 shadow-emeraldGlow cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingCart className="w-4 h-4" />
-                <span>Buy {selectedTicker}</span>
+                <span>{!currentPrice || quoteError || historyError ? "Asset Unavailable" : `Buy ${selectedTicker}`}</span>
               </button>
 
               <button

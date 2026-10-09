@@ -222,6 +222,7 @@ export const StockChart = ({
   isLoading = false,
   error = null,
   onRetry = null,
+  onSelectTicker = null,
 }) => {
   const { convert, symbol, formatRaw } = useCurrency();
   const nativeCurrency = getStockNativeCurrency(ticker, stockCurrency);
@@ -434,23 +435,57 @@ export const StockChart = ({
   }
 
   if (error) {
+    const errorDetail = error?.response?.data?.detail || error?.message || "";
+    // Check if error message contains a suggestion: e.g. Did you mean 'ALOKINDS.NS'
+    const matchSuggestion = errorDetail.match(/Did you mean '([^']+)'/i);
+    const suggestedTicker = matchSuggestion ? matchSuggestion[1] : null;
+
     return (
-      <div className="h-64 bg-brand-surface/40 rounded-2xl border border-red-500/20 flex flex-col items-center justify-center text-xs p-6 text-center gap-3">
+      <div className="min-h-64 bg-brand-surface/40 rounded-2xl border border-red-500/20 flex flex-col items-center justify-center text-xs p-6 text-center gap-3">
         <AlertCircle className="w-8 h-8 text-brand-red" />
         <div>
           <p className="font-semibold text-white">Historical Data Unavailable</p>
-          <p className="text-brand-textMuted text-[11px] mt-1 max-w-xs">
-            {error?.message || "Failed to load market OHLCV bars. Please verify your connection."}
+          <p className="text-brand-textMuted text-[11px] mt-1 max-w-sm">
+            {errorDetail || `Market OHLCV candlestick data for ${ticker} could not be retrieved from exchange.`}
           </p>
         </div>
-        {onRetry && (
-          <button
-            onClick={onRetry}
-            className="px-4 py-1.5 rounded-xl bg-brand-surface border border-white/10 hover:border-brand-emerald/40 text-brand-emerald font-bold text-xs transition-colors"
-          >
-            Retry Fetch
-          </button>
+
+        {suggestedTicker && onSelectTicker && (
+          <div className="bg-brand-emerald/10 border border-brand-emerald/30 rounded-xl px-4 py-2 flex items-center gap-2">
+            <span className="text-brand-textSecondary text-xs">Did you mean:</span>
+            <button
+              onClick={() => onSelectTicker(suggestedTicker)}
+              className="text-xs font-mono font-bold text-brand-emerald hover:underline cursor-pointer"
+            >
+              {suggestedTicker} →
+            </button>
+          </div>
         )}
+
+        <div className="flex items-center gap-2 flex-wrap justify-center pt-1">
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="px-4 py-1.5 rounded-xl bg-brand-surface border border-white/10 hover:border-brand-emerald/40 text-brand-emerald font-bold text-xs transition-colors cursor-pointer"
+            >
+              Retry Fetch
+            </button>
+          )}
+          {onSelectTicker && (
+            <div className="flex items-center gap-1.5 text-[11px] text-brand-textMuted flex-wrap justify-center">
+              <span>Try:</span>
+              {["ALOKINDS.NS", "RELIANCE.NS", "TCS.NS", "AAPL"].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => onSelectTicker(t)}
+                  className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 text-white font-mono text-[10px] cursor-pointer"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }

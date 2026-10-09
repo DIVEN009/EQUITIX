@@ -90,6 +90,15 @@ def test_security_master_resolve():
     assert resp.status_code == 200
     assert resp.json()["ticker"] == "RTNPOWER.NS"
 
+    # Test resolving company name variations and typos
+    resp = client.get("/api/v1/stocks/resolve?q=ALOK INDUSTRY")
+    assert resp.status_code == 200
+    assert resp.json()["ticker"] == "ALOKINDS.NS"
+
+    resp = client.get("/api/v1/stocks/resolve?q=ALOKEINDS.NS")
+    assert resp.status_code == 200
+    assert resp.json()["ticker"] == "ALOKINDS.NS"
+
 
 def test_stock_predictions():
     # Insert a dummy prediction to verify endpoint

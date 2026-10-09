@@ -22,6 +22,7 @@ export const TransactionModal = ({
   const [action, setAction] = useState(initialAction);
   const [shares, setShares] = useState(initialShares ? String(initialShares) : "10");
   const [price, setPrice] = useState(initialPrice ? String(Number(initialPrice).toFixed(2)) : "0.00");
+  const [isPriceManuallyEdited, setIsPriceManuallyEdited] = useState(false);
   const [localError, setLocalError] = useState("");
 
   // Live quote query for real-time market price locking
@@ -69,17 +70,26 @@ export const TransactionModal = ({
       }
 
       setLocalError("");
+      setIsPriceManuallyEdited(false);
     }
   }, [isOpen, initialTicker, initialAction, initialPrice, initialShares, holdings]);
 
-  // Automatically lock execution price to live market price as soon as quote arrives
-  useEffect(() => {
+  // Derive real-time market price converted to active display currency
+  const liveMarketPrice = React.useMemo(() => {
     if (quote?.current_price && quote.current_price > 0) {
       const nativeCurr = getStockNativeCurrency(ticker, quote.currency);
       const converted = convertCurrency(quote.current_price, nativeCurr, portfolioCurrency || "INR");
-      setPrice(Number(converted).toFixed(2));
+      return Number(converted).toFixed(2);
     }
+    return null;
   }, [quote?.current_price, quote?.currency, ticker, portfolioCurrency]);
+
+  // Default execution price to live market price as soon as quote arrives, unless user manually edited it
+  useEffect(() => {
+    if (liveMarketPrice && !isPriceManuallyEdited) {
+      setPrice(liveMarketPrice);
+    }
+  }, [liveMarketPrice, isPriceManuallyEdited]);
 
   if (!isOpen) return null;
 
@@ -177,6 +187,7 @@ export const TransactionModal = ({
   const handleSelectTicker = (selectedTicker) => {
     const sym = selectedTicker.toUpperCase().trim();
     setTicker(sym);
+    setIsPriceManuallyEdited(false);
     setLocalError("");
     const holding = holdings?.find((h) => h.ticker?.toUpperCase() === sym);
     if (holding?.current_price) {
@@ -490,37 +501,77 @@ export const TransactionModal = ({
                 <label className="block text-[11px] font-semibold text-brand-textSecondary uppercase tracking-wider">
                   Execution Price ({symbol})
                 </label>
-                <span className="text-[10px] text-brand-emerald font-semibold flex items-center gap-1 font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald animate-pulse" />
-                  Live Market Price (Fixed)
-                </span>
-              </div>
-              <div className="w-full bg-brand-surface/90 border border-white/10 rounded-xl px-3.5 py-2.5 flex items-center justify-between shadow-inner">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-bold text-white text-base font-mono">
-                    {priceNum > 0
-                      ? `${symbol}${priceNum.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                      : isFetchingQuote
-                      ? "Fetching price..."
-                      : `${symbol}0.00`}
+                {isPriceManuallyEdited ? (
+                  <span className="text-[10px] text-brand-cyan font-semibold flex items-center gap-1 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan" />
+                    Custom / Historical
                   </span>
-                  {quote?.currency && quote.currency !== "INR" && quote?.current_price && (
-                    <span className="text-[10px] text-brand-textMuted font-mono">
-                      (${Number(quote.current_price).toFixed(2)} {quote.currency})
-                    </span>
-                  )}
-                </div>
-                {isFetchingQuote ? (
-                  <Loader2 className="w-3.5 h-3.5 text-brand-emerald animate-spin" />
                 ) : (
-                  <span className="text-[10px] text-brand-emerald bg-emerald-500/10 border border-brand-emerald/20 px-2 py-0.5 rounded-md font-mono font-bold">
-                    REAL-TIME
+                  <span className="text-[10px] text-brand-emerald font-semibold flex items-center gap-1 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald animate-pulse" />
+                    Live Market (Default)
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-brand-textMuted mt-1">
-                Executes at the real-time market quote to prevent price manipulation and slippage.
-              </p>
+
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-textMuted font-mono font-bold text-sm pointer-events-none">
+                  {symbol}
+                </span>
+                <input
+                  type="number"
+                  step="any"
+                  min="0.0001"
+                  required
+                  value={price}
+                  onChange={(e) => {
+                    setPrice(e.target.value);
+                    setIsPriceManuallyEdited(true);
+                    setLocalError("");
+                  }}
+                  placeholder="0.00"
+                  className="w-full bg-brand-surface border border-white/10 rounded-xl pl-8 pr-24 py-2 text-sm text-white font-mono font-bold focus:outline-none focus:border-brand-emerald transition-colors"
+                />
+                {liveMarketPrice && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPrice(liveMarketPrice);
+                      setIsPriceManuallyEdited(false);
+                      setLocalError("");
+                    }}
+                    title="Click to snap to current live exchange price"
+                    className={`absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                      !isPriceManuallyEdited
+                        ? "bg-emerald-500/15 text-brand-emerald border border-brand-emerald/30"
+                        : "bg-white/10 hover:bg-white/20 text-brand-textSecondary hover:text-white border border-white/10"
+                    }`}
+                  >
+                    {!isPriceManuallyEdited ? "● LIVE" : "SNAP LIVE"}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] text-brand-textMuted mt-1">
+                <span>
+                  {isPriceManuallyEdited
+                    ? "Custom price for past purchase simulation."
+                    : "Defaults to live quote. Editable for historical buys."}
+                </span>
+                {liveMarketPrice && isPriceManuallyEdited && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPrice(liveMarketPrice);
+                      setIsPriceManuallyEdited(false);
+                      setLocalError("");
+                    }}
+                    className="text-brand-emerald hover:underline font-mono font-semibold cursor-pointer"
+                  >
+                    Live: {symbol}{Number(liveMarketPrice).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
