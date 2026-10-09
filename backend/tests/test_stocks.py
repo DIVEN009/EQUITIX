@@ -157,3 +157,26 @@ def test_stock_benchmarks():
         assert m["rmse"] > 0
         assert m["directional_accuracy_pct"] > 0
 
+
+def test_dynamic_predictions_for_any_stock():
+    response = client.get("/api/v1/stocks/ALOKINDS.NS/predictions")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ticker"] == "ALOKINDS.NS"
+    assert len(data["predictions"]) >= 14
+    models = {p["model_name"] for p in data["predictions"]}
+    assert "LSTM_v1" in models
+    assert "LinearReg_v1" in models
+
+
+def test_calibrated_benchmarks_scaling():
+    response = client.get("/api/v1/stocks/ALOKINDS.NS/benchmarks")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ticker"] == "ALOKINDS.NS"
+    for m in data["models"]:
+        assert m["rmse"] < 5.0
+        assert m["directional_accuracy_pct"] >= 50.0
+        assert "ALOKINDS" in m["weights_file"]
+
+

@@ -165,10 +165,12 @@ export const ForecastChart = ({
         }
       });
 
-      // Get unique sorted future target dates
+      // Get unique sorted future target dates strictly after anchor date
       const futureDates = Array.from(
         new Set([...Object.keys(lstmMap), ...Object.keys(baselineMap)])
-      ).sort((a, b) => new Date(a) - new Date(b));
+      )
+        .filter((dStr) => !anchorDt || new Date(dStr) > new Date(anchorDt))
+        .sort((a, b) => new Date(a) - new Date(b));
 
       // Construct points with currency conversion applied
       const points = [];
@@ -200,14 +202,23 @@ export const ForecastChart = ({
         });
       });
 
-      // Compute Y-Axis bounds
+      // Compute adaptive Y-Axis bounds
       const allPrices = points
         .flatMap((p) => [p.actual, p.lstm, p.baseline])
         .filter((v) => v !== null && !isNaN(v));
 
       const min = allPrices.length > 0 ? Math.min(...allPrices) : 100;
       const max = allPrices.length > 0 ? Math.max(...allPrices) : 200;
-      const padding = (max - min) * 0.08 || 2;
+      const range = max - min;
+      const padding = range > 0 ? range * 0.12 : (min * 0.05 || 1);
+
+      const isLowPrice = max < 25;
+      const minBound = isLowPrice
+        ? Math.max(0, Number((min - padding).toFixed(2)))
+        : Math.max(0, Math.floor(min - padding));
+      const maxBound = isLowPrice
+        ? Number((max + padding).toFixed(2))
+        : Math.ceil(max + padding);
 
       const lastLstm = futureDates.length > 0 ? lstmMap[futureDates[futureDates.length - 1]] : null;
       const lastBase = futureDates.length > 0 ? baselineMap[futureDates[futureDates.length - 1]] : null;
@@ -216,14 +227,15 @@ export const ForecastChart = ({
 
       return {
         chartData: points,
-        minPrice: Math.max(0, Math.floor(min - padding)),
-        maxPrice: Math.ceil(max + padding),
+        minPrice: minBound,
+        maxPrice: maxBound,
         anchorDate: anchorDt,
         lstmTarget: convertedTarget,
         baselineTarget: lastBase != null ? Number((lastBase * conversionRate).toFixed(2)) : null,
         driftPct: drift,
       };
     }, [historyData, predictionsData, conversionRate]);
+
 
   if (isLoading) {
     return (

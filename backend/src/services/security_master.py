@@ -209,8 +209,19 @@ class SecurityMasterService:
 
         # If input has spaces (e.g. "ALOK INDUSTRY.NS"), strip .NS so it's handled as a company name
         clean_q = re.sub(r"(\.NS|\.BO)$", "", q_raw.upper().strip(), flags=re.IGNORECASE) if has_spaces else q_raw.upper().strip()
+
+        # Alias mapping for demerged / renamed tickers on NSE
+        ALIAS_MAP = {
+            "TATAMOTORS.NS": "TMCV.NS",
+            "TATAMOTORS": "TMCV.NS",
+            "TATAMOTOR": "TMCV.NS",
+        }
+        if clean_q in ALIAS_MAP:
+            clean_q = ALIAS_MAP[clean_q]
+
         bare_sym = clean_q.replace(".NS", "").replace(".BO", "").strip()
         norm_q = normalize_text(clean_q)
+
 
         # 1. Exact Ticker Match (e.g. ALOKINDS.NS, AAPL)
         if clean_q in self._by_ticker:

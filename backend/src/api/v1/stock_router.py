@@ -142,6 +142,7 @@ def get_stock_predictions(
 )
 def get_stock_benchmarks(
     ticker: str,
+    db: Session = Depends(get_db),
 ) -> StockBenchmarksResponse:
-    return stock_service.get_stock_benchmarks(ticker=ticker)
+    return stock_service.get_stock_benchmarks(ticker=ticker, db=db)
 
