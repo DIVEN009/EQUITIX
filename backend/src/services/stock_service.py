@@ -50,7 +50,7 @@ class StockService:
         if resolved and resolved.get("ticker"):
             return resolved["ticker"]
 
-        ticker_clean = ticker.upper().strip()
+        ticker_clean = ticker.upper().strip().replace(" ", "")
         return ticker_clean if "." in ticker_clean else f"{ticker_clean}.NS"
 
     def _sync_yfinance_fetch(self, ticker: str, days: int = 365) -> Optional[Dict[str, Any]]:
@@ -366,9 +366,13 @@ class StockService:
         # 3. Neither yfinance in 5.0s nor DB data exists: do a blocking fetch attempt
         fallback_data = await self.fetch_with_timeout(ticker_clean, days=5, timeout=10.0)
         if not fallback_data:
+            suggestion = security_master.suggest(ticker_clean)
+            detail = f"Stock ticker '{ticker_clean}' not found or market data unavailable."
+            if suggestion:
+                detail += f" Did you mean '{suggestion['ticker']}' ({suggestion['company_name']})?"
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Stock ticker '{ticker_clean}' not found or market data unavailable.",
+                detail=detail,
             )
 
         stock = self.repo.upsert_stock(
@@ -553,9 +557,13 @@ class StockService:
             fallback_data = await self.fetch_with_timeout(ticker_clean, days=365, timeout=10.0)
 
         if not fallback_data or not fallback_data.get("price_records"):
+            suggestion = security_master.suggest(ticker_clean)
+            detail = f"Historical price data for ticker '{ticker_clean}' could not be retrieved."
+            if suggestion:
+                detail += f" Did you mean '{suggestion['ticker']}' ({suggestion['company_name']})?"
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Historical price data for ticker '{ticker_clean}' could not be retrieved.",
+                detail=detail,
             )
 
         stock = self.repo.upsert_stock(
