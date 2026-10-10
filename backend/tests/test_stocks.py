@@ -180,3 +180,35 @@ def test_calibrated_benchmarks_scaling():
         assert "ALOKINDS" in m["weights_file"]
 
 
+def test_market_status_endpoint_and_quote_enrichment():
+    # 1. Test standalone /stocks/market-status endpoint for NSE
+    resp_nse = client.get("/api/v1/stocks/market-status?ticker=RELIANCE.NS")
+    assert resp_nse.status_code == 200
+    nse_data = resp_nse.json()
+    assert nse_data["exchange"] == "NSE"
+    assert nse_data["timezone"] == "Asia/Kolkata"
+    assert "is_open" in nse_data
+    assert "status" in nse_data
+    assert "message" in nse_data
+    assert "next_open" in nse_data
+    assert nse_data["next_open_countdown_seconds"] >= 0
+
+    # 2. Test standalone /stocks/market-status endpoint for US
+    resp_us = client.get("/api/v1/stocks/market-status?ticker=AAPL")
+    assert resp_us.status_code == 200
+    us_data = resp_us.json()
+    assert us_data["exchange"] == "US"
+    assert us_data["timezone"] == "America/New_York"
+    assert "is_open" in us_data
+    assert "status" in us_data
+
+    # 3. Test that stock quote response includes market_status
+    quote_resp = client.get("/api/v1/stocks/AAPL")
+    assert quote_resp.status_code == 200
+    q_data = quote_resp.json()
+    assert "market_status" in q_data
+    assert q_data["market_status"] is not None
+    assert q_data["market_status"]["exchange"] == "US"
+
+
+

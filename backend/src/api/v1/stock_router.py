@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, BackgroundTasks, status
 from sqlalchemy.orm import Session
 
@@ -11,8 +11,10 @@ from src.schemas.stock_schema import (
     StockSearchItem,
     StockBenchmarksResponse,
     ForexRatesResponse,
+    MarketStatusResponse,
 )
 from src.services.stock_service import stock_service
+from src.services.market_schedule import market_schedule_service
 
 router = APIRouter()
 
@@ -71,6 +73,22 @@ def resolve_stock(
 )
 def get_forex_rates() -> ForexRatesResponse:
     return ForexRatesResponse(**stock_service.get_live_forex_rates())
+
+
+@router.get(
+    "/market-status",
+    response_model=MarketStatusResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get market trading status and schedule",
+    description="Check whether equity markets (NSE/BSE or US) are currently open, weekend/holiday status, and countdown to next session.",
+)
+def get_market_status(
+    ticker: Optional[str] = Query(None, description="Optional stock ticker (e.g. RELIANCE.NS, AAPL)"),
+    exchange: Optional[str] = Query(None, description="Optional exchange code (NSE, BSE, US)"),
+) -> MarketStatusResponse:
+    res = market_schedule_service.get_market_status(ticker=ticker, exchange=exchange)
+    return MarketStatusResponse(**res)
+
 
 
 @router.get(

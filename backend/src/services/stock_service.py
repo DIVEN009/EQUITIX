@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import math
 import os
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 from src.services.security_master import security_master
 from src.services.prediction_engine import prediction_engine
+from src.services.market_schedule import market_schedule_service
 
 YFINANCE_TIMEOUT_SECONDS = 5.0
 
@@ -132,32 +134,50 @@ class StockService:
             previous_close = None
 
             if fast_info:
-                current_price = getattr(fast_info, "last_price", None)
-                previous_close = getattr(fast_info, "previous_close", None)
+                last_p = getattr(fast_info, "last_price", None)
+                prev_c = getattr(fast_info, "previous_close", None)
+                try:
+                    if last_p is not None and not math.isnan(float(last_p)) and float(last_p) > 0:
+                        current_price = float(last_p)
+                except (ValueError, TypeError):
+                    pass
+                try:
+                    if prev_c is not None and not math.isnan(float(prev_c)) and float(prev_c) > 0:
+                        previous_close = float(prev_c)
+                except (ValueError, TypeError):
+                    pass
 
             # Parse historical prices
             price_records = []
             for index, row in history_df.iterrows():
                 try:
+                    close_raw = float(row["Close"])
+                    if math.isnan(close_raw) or close_raw <= 0:
+                        continue
+
+                    open_raw = float(row["Open"]) if not math.isnan(float(row["Open"])) and float(row["Open"]) > 0 else close_raw
+                    high_raw = float(row["High"]) if not math.isnan(float(row["High"])) and float(row["High"]) > 0 else max(open_raw, close_raw)
+                    low_raw = float(row["Low"]) if not math.isnan(float(row["Low"])) and float(row["Low"]) > 0 else min(open_raw, close_raw)
+                    vol_raw = int(row["Volume"]) if not math.isnan(float(row["Volume"])) and float(row["Volume"]) >= 0 else 0
+
                     if is_intraday:
-                        # Full ISO timestamp string for intraday ticks: e.g. "2026-10-02T09:30:00"
                         price_date = index.strftime("%Y-%m-%dT%H:%M:%S") if hasattr(index, "strftime") else str(index)
                     else:
                         price_date = index.date() if hasattr(index, "date") else index
 
                     price_records.append({
                         "date": price_date,
-                        "open": round(float(row["Open"]), 2),
-                        "high": round(float(row["High"]), 2),
-                        "low": round(float(row["Low"]), 2),
-                        "close": round(float(row["Close"]), 2),
-                        "volume": int(row["Volume"]),
+                        "open": round(open_raw, 2),
+                        "high": round(high_raw, 2),
+                        "low": round(low_raw, 2),
+                        "close": round(close_raw, 2),
+                        "volume": vol_raw,
                     })
                 except Exception as row_err:
                     logger.debug(f"Skipping malformed row for {ticker_clean}: {row_err}")
                     continue
 
-            if not current_price and price_records:
+            if (current_price is None or math.isnan(float(current_price)) or float(current_price) <= 0) and price_records:
                 current_price = price_records[-1]["close"]
                 if len(price_records) > 1:
                     previous_close = price_records[-2]["close"]
@@ -325,11 +345,14 @@ class StockService:
 
             latest_trading_date = yf_data["price_records"][-1]["date"] if yf_data["price_records"] else date.today()
 
+            exchange_str = yf_data.get("exchange") or ("NSE" if ticker_clean.endswith(".NS") else ("BSE" if ticker_clean.endswith(".BO") else "US"))
+            m_status = market_schedule_service.get_market_status(ticker=stock.ticker, exchange=exchange_str)
+
             return StockSummaryResponse(
                 ticker=stock.ticker,
                 company_name=stock.company_name,
                 sector=stock.sector,
-                exchange=yf_data.get("exchange") or ("NSE" if ticker_clean.endswith(".NS") else ("BSE" if ticker_clean.endswith(".BO") else "US")),
+                exchange=exchange_str,
                 currency=yf_data.get("currency") or native_currency,
                 current_price=current_price,
                 previous_close=previous_close,
@@ -337,6 +360,7 @@ class StockService:
                 change_percent=change_percent,
                 latest_trading_date=latest_trading_date,
                 source="live",
+                market_status=m_status,
             )
 
         # 2. yfinance timed out or returned no data: DB Fallback Strategy
@@ -349,6 +373,7 @@ class StockService:
             chg = round(curr_price - prev_price, 2)
             chg_pct = round((chg / prev_price) * 100, 2) if prev_price else None
             fallback_exchange = "NSE" if ticker_clean.endswith(".NS") else ("BSE" if ticker_clean.endswith(".BO") else "US")
+            m_status = market_schedule_service.get_market_status(ticker=existing_stock.ticker, exchange=fallback_exchange)
 
             return StockSummaryResponse(
                 ticker=existing_stock.ticker,
@@ -362,6 +387,7 @@ class StockService:
                 change_percent=chg_pct,
                 latest_trading_date=latest_price_rec.date,
                 source="db_fallback",
+                market_status=m_status,
             )
 
         # 3. Neither yfinance in 5.0s nor DB data exists: do a blocking fetch attempt
@@ -385,16 +411,20 @@ class StockService:
         if fallback_data["price_records"]:
             self.repo.upsert_daily_prices(db, fallback_data["ticker"], fallback_data["price_records"])
 
+        final_exchange = fallback_data.get("exchange") or ("NSE" if ticker_clean.endswith(".NS") else ("BSE" if ticker_clean.endswith(".BO") else "US"))
+        m_status = market_schedule_service.get_market_status(ticker=stock.ticker, exchange=final_exchange)
+
         return StockSummaryResponse(
             ticker=stock.ticker,
             company_name=stock.company_name,
             sector=stock.sector,
-            exchange=fallback_data.get("exchange") or ("NSE" if ticker_clean.endswith(".NS") else ("BSE" if ticker_clean.endswith(".BO") else "US")),
+            exchange=final_exchange,
             currency=fallback_data.get("currency") or native_currency,
             current_price=fallback_data["current_price"],
             previous_close=fallback_data["previous_close"],
             latest_trading_date=fallback_data["price_records"][-1]["date"] if fallback_data["price_records"] else date.today(),
             source="live",
+            market_status=m_status,
         )
 
     async def get_stock_history(

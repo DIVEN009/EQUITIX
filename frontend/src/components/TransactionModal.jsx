@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { X, ArrowDownRight, ArrowUpRight, Loader2, AlertCircle, Sparkles } from "lucide-react";
+import { X, ArrowDownRight, ArrowUpRight, Loader2, AlertCircle, Sparkles, Moon } from "lucide-react";
 import { useCurrency, convertCurrency, getStockNativeCurrency } from "../utils/currency";
 import { useStockQuote } from "../hooks/useStocks";
+import { calculateMarketStatus } from "../utils/marketSchedule";
 
 export const TransactionModal = ({
   isOpen,
@@ -27,6 +28,11 @@ export const TransactionModal = ({
 
   // Live quote query for real-time market price locking
   const { data: quote, isFetching: isFetchingQuote } = useStockQuote(ticker);
+
+  // Live market status for the ticker
+  const marketStatus = React.useMemo(() => {
+    return calculateMarketStatus(ticker);
+  }, [ticker]);
 
   // Lock body scroll when modal is open to avoid scrolled background artifacts
   useEffect(() => {
@@ -506,6 +512,11 @@ export const TransactionModal = ({
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan" />
                     Custom / Historical
                   </span>
+                ) : !marketStatus.isOpen ? (
+                  <span className="text-[10px] text-amber-300 font-semibold flex items-center gap-1 font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    Last Close (Market Closed)
+                  </span>
                 ) : (
                   <span className="text-[10px] text-brand-emerald font-semibold flex items-center gap-1 font-mono">
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald animate-pulse" />
@@ -543,11 +554,13 @@ export const TransactionModal = ({
                     title="Click to snap to current live exchange price"
                     className={`absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
                       !isPriceManuallyEdited
-                        ? "bg-emerald-500/15 text-brand-emerald border border-brand-emerald/30"
+                        ? !marketStatus.isOpen
+                          ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                          : "bg-emerald-500/15 text-brand-emerald border border-brand-emerald/30"
                         : "bg-white/10 hover:bg-white/20 text-brand-textSecondary hover:text-white border border-white/10"
                     }`}
                   >
-                    {!isPriceManuallyEdited ? "● LIVE" : "SNAP LIVE"}
+                    {!isPriceManuallyEdited ? (!marketStatus.isOpen ? "● CLOSE" : "● LIVE") : "SNAP CLOSE"}
                   </button>
                 )}
               </div>
@@ -556,6 +569,8 @@ export const TransactionModal = ({
                 <span>
                   {isPriceManuallyEdited
                     ? "Custom price for past purchase simulation."
+                    : !marketStatus.isOpen
+                    ? "Market closed. Order price matches last official session close."
                     : "Defaults to live quote. Editable for historical buys."}
                 </span>
                 {liveMarketPrice && isPriceManuallyEdited && (
@@ -572,6 +587,15 @@ export const TransactionModal = ({
                   </button>
                 )}
               </div>
+
+              {!marketStatus.isOpen && !isPriceManuallyEdited && (
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200 mt-2 flex items-center gap-2">
+                  <Moon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>
+                    Market is currently closed ({marketStatus.session}). Order will execute as a paper trade at the official closing price.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -684,7 +708,7 @@ export const TransactionModal = ({
             {isExecuting ? (
               <Loader2 className="w-4 h-4 animate-spin text-white" />
             ) : (
-              <span>Confirm {action} Order</span>
+              <span>Confirm {action} Order {!marketStatus.isOpen ? "(Paper Trade)" : ""}</span>
             )}
           </button>
         </form>

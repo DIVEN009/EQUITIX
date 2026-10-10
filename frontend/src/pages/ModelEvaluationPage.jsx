@@ -418,7 +418,7 @@ export const ModelEvaluationPage = () => {
                     Directional Accuracy
                   </div>
                   <div className="text-xl font-black text-brand-emerald mt-0.5 font-mono">
-                    {lstmBench.directional_accuracy_pct.toFixed(1)}%
+                    {(lstmBench.directional_accuracy_pct ?? 0).toFixed(1)}%
                   </div>
                   <span className="text-[10px] text-brand-emerald font-semibold block mt-0.5">
                     Classification edge
@@ -464,7 +464,7 @@ export const ModelEvaluationPage = () => {
                     Directional Accuracy
                   </div>
                   <div className="text-xl font-black text-slate-300 mt-0.5 font-mono">
-                    {baselineBench.directional_accuracy_pct.toFixed(1)}%
+                    {(baselineBench.directional_accuracy_pct ?? 0).toFixed(1)}%
                   </div>
                   <span className="text-[10px] text-brand-textMuted font-semibold block mt-0.5">
                     Coin-toss boundary

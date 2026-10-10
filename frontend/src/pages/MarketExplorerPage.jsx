@@ -16,6 +16,8 @@ import {
   X,
   Activity,
   RefreshCw,
+  Moon,
+  AlertCircle,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import {
@@ -27,6 +29,9 @@ import {
 import { usePortfolios, usePortfolioDetail } from "../hooks/usePortfolios";
 import { StockChart } from "../components/StockChart";
 import { TransactionModal } from "../components/TransactionModal";
+import { MarketStatusBanner } from "../components/MarketStatusBanner";
+import { MarketScheduleModal } from "../components/MarketScheduleModal";
+import { calculateMarketStatus } from "../utils/marketSchedule";
 import { toast } from "../store/toastStore";
 import { useCurrency, getStockNativeCurrency } from "../utils/currency";
 import { searchStocksApi, resolveStockApi } from "../api/stocks";
@@ -83,6 +88,8 @@ export const MarketExplorerPage = () => {
   });
 
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [simulationMode, setSimulationMode] = useState("auto");
   const searchContainerRef = useRef(null);
   const trendingRef = useRef(null);
 
@@ -247,6 +254,16 @@ export const MarketExplorerPage = () => {
       : selectedTicker.endsWith(".BO")
       ? "BSE"
       : "NASDAQ/NYSE");
+
+  // Real-time market status (open, closed, weekend, holiday, after-hours)
+  const liveMarketStatus = React.useMemo(() => {
+    return calculateMarketStatus(
+      selectedTicker,
+      effectiveExchange,
+      new Date(),
+      simulationMode
+    );
+  }, [selectedTicker, effectiveExchange, simulationMode]);
 
   const change = quote?.change ?? (history?.data?.length > 1 && history.data[0].open ? currentPrice - history.data[0].open : 0);
   const changePercent = quote?.change_percent ?? (history?.data?.length > 1 && history.data[0].open ? ((currentPrice - history.data[0].open) / history.data[0].open) * 100 : 0);
@@ -571,6 +588,16 @@ export const MarketExplorerPage = () => {
         </div>
       </div>
 
+      {/* Real-time Market Status Alert Banner (Notifies customer when market is closed or open) */}
+      <MarketStatusBanner
+        ticker={selectedTicker}
+        exchange={effectiveExchange}
+        latestTradingDate={quote?.latest_trading_date}
+        backendStatus={quote?.market_status}
+        simulationMode={simulationMode}
+        onOpenSchedule={() => setIsScheduleModalOpen(true)}
+      />
+
       {/* Main 12-Column Responsive Desktop Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (8 cols): Primary Chart Card + AI Forecast Insights */}
@@ -625,31 +652,47 @@ export const MarketExplorerPage = () => {
                     <span>
                       {isUp ? "+" : ""}
                       {formatStock(change, selectedTicker, 2, effectiveCurrency)} ({isUp ? "+" : ""}
-                      {changePercent.toFixed(2)}%)
+                      {(Number(changePercent) || 0).toFixed(2)}%)
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1.5">
-                <span
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                <button
+                  type="button"
+                  onClick={() => setIsScheduleModalOpen(true)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
                     quoteError || historyError
                       ? "bg-red-500/10 text-red-400 border-red-500/30"
+                      : !liveMarketStatus.isOpen
+                      ? "bg-amber-500/15 text-amber-300 border-amber-500/35 hover:bg-amber-500/25 shadow-sm"
                       : quote?.source === "live"
                       ? "bg-emerald-500/10 text-brand-emerald border-brand-emerald/30 shadow-sm"
                       : "bg-amber-500/10 text-amber-400 border-amber-500/30"
                   }`}
+                  title="Click to view full market schedule and holiday calendar"
                 >
-                  {quoteError || historyError
-                    ? "● Unavailable"
-                    : quote?.source === "live"
-                    ? "● Live Stream"
-                    : "Cached DB"}
-                </span>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      quoteError || historyError
+                        ? "bg-red-400"
+                        : !liveMarketStatus.isOpen
+                        ? "bg-amber-400 animate-pulse"
+                        : "bg-brand-emerald animate-ping"
+                    }`}
+                  />
+                  <span>
+                    {quoteError || historyError
+                      ? "Unavailable"
+                      : !liveMarketStatus.isOpen
+                      ? "Market Closed"
+                      : "Market Open"}
+                  </span>
+                </button>
                 <span className="text-[10px] text-brand-textMuted flex items-center gap-1 font-mono">
                   <Clock className="w-3 h-3" />
-                  {quote?.latest_trading_date || "Market Close"}
+                  {quote?.latest_trading_date ? `Session: ${quote.latest_trading_date}` : "Session Close"}
                 </span>
               </div>
             </div>
@@ -1001,13 +1044,34 @@ export const MarketExplorerPage = () => {
 
             {/* Action Buttons */}
             <div className="space-y-2.5">
+              {!liveMarketStatus.isOpen && (
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 flex items-start gap-2.5">
+                  <Moon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5 min-w-0">
+                    <span className="font-bold text-white block text-[11px]">
+                      Market is Closed ({liveMarketStatus.session})
+                    </span>
+                    <p className="text-[11px] text-slate-300 leading-snug">
+                      Simulated buy order will execute at the last close price of{" "}
+                      <strong className="text-white font-mono">{currentPrice ? formatStock(currentPrice, selectedTicker, 2, quote?.currency) : "---"}</strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={() => setIsTxModalOpen(true)}
                 disabled={!currentPrice || quoteError || historyError}
                 className="w-full btn-emerald-glow py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 shadow-emeraldGlow cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingCart className="w-4 h-4" />
-                <span>{!currentPrice || quoteError || historyError ? "Asset Unavailable" : `Buy ${selectedTicker}`}</span>
+                <span>
+                  {!currentPrice || quoteError || historyError
+                    ? "Asset Unavailable"
+                    : !liveMarketStatus.isOpen
+                    ? `Place Simulated Buy (${selectedTicker})`
+                    : `Buy ${selectedTicker}`}
+                </span>
               </button>
 
               <button
@@ -1163,6 +1227,17 @@ export const MarketExplorerPage = () => {
           onExecute={handleExecuteTx}
           isExecuting={isExecutingTx}
           error={txError}
+        />
+      )}
+
+      {/* Exchange Market Schedule & Holiday Modal */}
+      {isScheduleModalOpen && (
+        <MarketScheduleModal
+          isOpen={isScheduleModalOpen}
+          onClose={() => setIsScheduleModalOpen(false)}
+          currentStatus={liveMarketStatus}
+          simulationMode={simulationMode}
+          setSimulationMode={setSimulationMode}
         />
       )}
     </div>

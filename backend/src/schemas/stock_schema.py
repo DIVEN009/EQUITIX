@@ -26,6 +26,26 @@ class DailyPriceItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class MarketStatusResponse(BaseModel):
+    ticker: Optional[str] = None
+    exchange: str = "NSE"
+    market_name: str
+    timezone: str
+    timezone_abbr: str
+    is_open: bool
+    status: str
+    session: str
+    reason: str
+    message: str
+    regular_hours: str
+    current_exchange_time: str
+    next_open: str
+    next_open_iso: Optional[str] = None
+    next_open_countdown_seconds: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class StockSummaryResponse(StockBase):
     current_price: Optional[float] = None
     previous_close: Optional[float] = None
@@ -33,6 +53,7 @@ class StockSummaryResponse(StockBase):
     change_percent: Optional[float] = None
     latest_trading_date: Optional[date] = None
     source: str = Field("live", description="'live' or 'db_fallback'")
+    market_status: Optional[MarketStatusResponse] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -60,9 +60,15 @@ class StockRepository:
         ticker_clean = ticker.upper().strip()
         stock = self.get_stock(db, ticker_clean)
         actual_ticker = stock.ticker if stock else ticker_clean
+        from sqlalchemy import cast, String
         return (
             db.query(DailyPrice)
-            .filter(DailyPrice.ticker == actual_ticker)
+            .filter(
+                DailyPrice.ticker == actual_ticker,
+                DailyPrice.close.isnot(None),
+                DailyPrice.close > 0,
+                cast(DailyPrice.close, String) != 'NaN'
+            )
             .order_by(DailyPrice.date.desc())
             .first()
         )
@@ -77,11 +83,15 @@ class StockRepository:
         stock = self.get_stock(db, ticker_clean)
         actual_ticker = stock.ticker if stock else ticker_clean
         cutoff_date = date.today() - timedelta(days=days)
+        from sqlalchemy import cast, String
         return (
             db.query(DailyPrice)
             .filter(
                 DailyPrice.ticker == actual_ticker,
                 DailyPrice.date >= cutoff_date,
+                DailyPrice.close.isnot(None),
+                DailyPrice.close > 0,
+                cast(DailyPrice.close, String) != 'NaN'
             )
             .order_by(DailyPrice.date.asc())
             .all()
@@ -96,18 +106,62 @@ class StockRepository:
         if not records:
             return 0
 
+        import math
         ticker_clean = ticker.upper().strip()
         prepared_records = []
         for r in records:
+            close_val = r.get("close")
+            if close_val is None:
+                continue
+            try:
+                cf = float(close_val)
+                if math.isnan(cf) or math.isinf(cf) or cf <= 0:
+                    continue
+            except (ValueError, TypeError):
+                continue
+
+            open_val = r.get("open")
+            try:
+                of = float(open_val) if open_val is not None else cf
+                if math.isnan(of) or math.isinf(of) or of <= 0:
+                    of = cf
+            except (ValueError, TypeError):
+                of = cf
+
+            high_val = r.get("high")
+            try:
+                hf = float(high_val) if high_val is not None else max(of, cf)
+                if math.isnan(hf) or math.isinf(hf) or hf <= 0:
+                    hf = max(of, cf)
+            except (ValueError, TypeError):
+                hf = max(of, cf)
+
+            low_val = r.get("low")
+            try:
+                lf = float(low_val) if low_val is not None else min(of, cf)
+                if math.isnan(lf) or math.isinf(lf) or lf <= 0:
+                    lf = min(of, cf)
+            except (ValueError, TypeError):
+                lf = min(of, cf)
+
+            vol_val = r.get("volume", 0)
+            try:
+                vf = int(vol_val) if vol_val is not None and not math.isnan(float(vol_val)) else 0
+            except (ValueError, TypeError):
+                vf = 0
+
             prepared_records.append({
                 "ticker": ticker_clean,
                 "date": r["date"],
-                "open": r["open"],
-                "high": r["high"],
-                "low": r["low"],
-                "close": r["close"],
-                "volume": r["volume"],
+                "open": round(of, 2),
+                "high": round(hf, 2),
+                "low": round(lf, 2),
+                "close": round(cf, 2),
+                "volume": vf,
             })
+
+        if not prepared_records:
+            return 0
 
         stmt = pg_insert(DailyPrice).values(prepared_records)
         stmt = stmt.on_conflict_do_update(

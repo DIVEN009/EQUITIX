@@ -132,8 +132,11 @@ export const ForecastChart = ({
   // Construct timeline joining historical points and 7-day predicted horizon
   const { chartData, minPrice, maxPrice, anchorDate, lstmTarget, driftPct } =
     useMemo(() => {
-      // 1. Take up to the last 8 trading days of history
-      const recentHistory = (historyData || []).slice(-8);
+      // 1. Filter historyData to only strictly valid numeric closes and take last 8 trading days
+      const validHistory = (historyData || []).filter(
+        (h) => h && h.close != null && !isNaN(Number(h.close)) && Number(h.close) > 0
+      );
+      const recentHistory = validHistory.slice(-8);
 
       if (recentHistory.length === 0 && (!predictionsData || predictionsData.length === 0)) {
         return {
@@ -147,8 +150,8 @@ export const ForecastChart = ({
         };
       }
 
-      const lastHist = recentHistory[recentHistory.length - 1];
-      const anchorPrice = lastHist ? lastHist.close : 0;
+      const lastHist = recentHistory.length > 0 ? recentHistory[recentHistory.length - 1] : null;
+      const anchorPrice = lastHist ? Number(lastHist.close) : 0;
       const anchorDt = lastHist ? lastHist.date : null;
 
       // Group predictions by target_date
@@ -178,7 +181,10 @@ export const ForecastChart = ({
       // Historical points
       recentHistory.forEach((h, index) => {
         const isAnchor = index === recentHistory.length - 1;
-        const cPrice = h.close != null ? Number((h.close * conversionRate).toFixed(2)) : null;
+        const cPrice =
+          h.close != null && !isNaN(Number(h.close))
+            ? Number((Number(h.close) * conversionRate).toFixed(2))
+            : null;
         points.push({
           date: h.date,
           actual: cPrice,
@@ -196,8 +202,8 @@ export const ForecastChart = ({
         points.push({
           date: dStr,
           actual: null,
-          lstm: rawLstm != null ? Number((rawLstm * conversionRate).toFixed(2)) : null,
-          baseline: rawBase != null ? Number((rawBase * conversionRate).toFixed(2)) : null,
+          lstm: rawLstm != null && !isNaN(Number(rawLstm)) ? Number((Number(rawLstm) * conversionRate).toFixed(2)) : null,
+          baseline: rawBase != null && !isNaN(Number(rawBase)) ? Number((Number(rawBase) * conversionRate).toFixed(2)) : null,
           type: "forecast",
         });
       });
@@ -385,7 +391,7 @@ export const ForecastChart = ({
               strokeWidth={2.5}
               dot={{ r: 2.5, fill: "#94A3B8" }}
               activeDot={{ r: 5, fill: "#FFFFFF", stroke: "#0A0E17", strokeWidth: 2 }}
-              connectNulls={false}
+              connectNulls={true}
               isAnimationActive={false}
             />
 

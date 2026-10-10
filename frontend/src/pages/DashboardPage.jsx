@@ -220,7 +220,7 @@ export const DashboardPage = () => {
                   <span>
                     {isPositivePnl ? "+" : ""}
                     {formatPortfolio(portfolio?.total_unrealized_pnl || 0)} (
-                    {portfolio?.total_unrealized_pnl_percent || 0}%)
+                    {(Number(portfolio?.total_unrealized_pnl_percent) || 0).toFixed(2)}%)
                   </span>
                 </div>
                 <span className="text-brand-textMuted text-[10px] font-medium">Unrealized Net P&L</span>
@@ -372,7 +372,7 @@ export const DashboardPage = () => {
                                 {isGain ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
                                 <span>
                                   {isGain ? "+" : ""}
-                                  {formatStock(h.unrealized_pnl, h.ticker)} ({h.unrealized_pnl_percent.toFixed(2)}%)
+                                  {formatStock(h.unrealized_pnl || 0, h.ticker)} ({(Number(h.unrealized_pnl_percent) || 0).toFixed(2)}%)
                                 </span>
                               </div>
                             </td>
@@ -428,7 +428,7 @@ export const DashboardPage = () => {
                             {isGain ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                             <span>
                               {isGain ? "+" : ""}
-                              {formatStock(h.unrealized_pnl, h.ticker)} ({h.unrealized_pnl_percent.toFixed(2)}%)
+                              {formatStock(h.unrealized_pnl || 0, h.ticker)} ({(Number(h.unrealized_pnl_percent) || 0).toFixed(2)}%)
                             </span>
                           </div>
                           <div className="flex justify-end gap-1.5 mt-1.5">
