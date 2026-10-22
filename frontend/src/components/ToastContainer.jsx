@@ -1,6 +1,27 @@
 import React from "react";
-import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from "lucide-react";
 import { useToastStore } from "../store/toastStore";
+import { CheckCircle2, XCircle, AlertTriangle, Info, X } from "lucide-react";
+
+const iconMap = {
+  success: CheckCircle2,
+  error: XCircle,
+  warning: AlertTriangle,
+  info: Info,
+};
+
+const colorMap = {
+  success: "border-l-green-500 bg-green-50 dark:bg-green-500/10",
+  error: "border-l-red-500 bg-red-50 dark:bg-red-500/10",
+  warning: "border-l-amber-500 bg-amber-50 dark:bg-amber-500/10",
+  info: "border-l-blue-500 bg-blue-50 dark:bg-blue-500/10",
+};
+
+const iconColorMap = {
+  success: "text-green-600 dark:text-green-400",
+  error: "text-red-600 dark:text-red-400",
+  warning: "text-amber-600 dark:text-amber-400",
+  info: "text-blue-600 dark:text-blue-400",
+};
 
 export const ToastContainer = () => {
   const { toasts, removeToast } = useToastStore();
@@ -8,46 +29,26 @@ export const ToastContainer = () => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+    <div className="fixed top-20 right-4 z-[100] flex flex-col gap-3 max-w-sm w-full pointer-events-none">
       {toasts.map((t) => {
-        const isSuccess = t.type === "success";
-        const isError = t.type === "error";
-        const isWarning = t.type === "warning";
-
+        const Icon = iconMap[t.type] || Info;
         return (
           <div
             key={t.id}
-            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl shadow-2xl backdrop-blur-xl border transition-all animate-in fade-in slide-in-from-top-2 duration-200 ${
-              isSuccess
-                ? "bg-brand-surface/95 border-brand-emerald/40 text-white shadow-emeraldGlow/20"
-                : isError
-                ? "bg-brand-surface/95 border-brand-red/40 text-white"
-                : isWarning
-                ? "bg-brand-surface/95 border-amber-500/40 text-white"
-                : "bg-brand-surface/95 border-white/10 text-white"
-            }`}
+            className={`pointer-events-auto border-l-4 rounded-2xl px-4 py-3.5 shadow-xl flex items-start gap-3 animate-slide-down bg-brand-surface border border-brand-border ${colorMap[t.type] || colorMap.info}`}
           >
-            <div className="shrink-0 mt-0.5">
-              {isSuccess && <CheckCircle2 className="w-4 h-4 text-brand-emerald" />}
-              {isError && <AlertCircle className="w-4 h-4 text-brand-red" />}
-              {isWarning && <AlertTriangle className="w-4 h-4 text-amber-400" />}
-              {!isSuccess && !isError && !isWarning && (
-                <Info className="w-4 h-4 text-brand-cyan" />
-              )}
-            </div>
-
+            <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${iconColorMap[t.type] || iconColorMap.info}`} />
             <div className="flex-1 min-w-0">
-              {t.title && <div className="text-xs font-bold text-white">{t.title}</div>}
+              {t.title && (
+                <p className="text-sm font-bold text-brand-textPrimary">{t.title}</p>
+              )}
               {t.message && (
-                <div className="text-[11px] text-brand-textSecondary mt-0.5 leading-relaxed">
-                  {t.message}
-                </div>
+                <p className="text-xs text-brand-textSecondary mt-0.5 leading-relaxed">{t.message}</p>
               )}
             </div>
-
             <button
               onClick={() => removeToast(t.id)}
-              className="p-1 rounded-lg text-brand-textMuted hover:text-white transition-colors"
+              className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-brand-textMuted hover:text-brand-textPrimary transition-colors cursor-pointer shrink-0"
             >
               <X className="w-3.5 h-3.5" />
             </button>

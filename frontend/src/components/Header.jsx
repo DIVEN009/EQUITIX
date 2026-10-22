@@ -1,164 +1,136 @@
-import React, { useState, useRef, useEffect } from "react";
-import { LogOut, User, ChevronDown, Check, Briefcase, TrendingUp, Sparkles, RefreshCw } from "lucide-react";
-import { BrandLogo } from "./BrandLogo";
+import React from "react";
 import { useAuthStore } from "../store/authStore";
-import { useCurrency, SUPPORTED_CURRENCIES } from "../utils/currency";
-import { toast } from "../store/toastStore";
+import { useSettingsStore } from "../store/settingsStore";
+import { BrandLogo } from "./BrandLogo";
+import {
+  Sun,
+  Moon,
+  Settings,
+  LogOut,
+  User,
+  ChevronDown,
+} from "lucide-react";
 
-export const Header = () => {
-  const { user, clearAuth, activeTab, setActiveTab } = useAuthStore();
-  const {
-    currency,
-    setCurrency,
-    config: currentConfig,
-    rates,
-    refreshRates,
-    isLoadingForex,
-  } = useCurrency();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+/**
+ * Top Header Bar — Logo, Navigation Tabs, Theme Toggle, User Menu.
+ */
+export const Header = ({ onOpenSettings }) => {
+  const { user, activeTab, setActiveTab } = useAuthStore();
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const { theme, toggleTheme } = useSettingsStore();
+  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
+  const menuRef = React.useRef(null);
 
-  const desktopNavItems = [
-    { id: "dashboard", label: "Portfolio", icon: Briefcase },
-    { id: "market", label: "Market", icon: TrendingUp },
-    { id: "models", label: "Predictions", icon: Sparkles },
+  const navItems = [
+    { id: "dashboard", label: "Portfolio" },
+    { id: "market", label: "Markets" },
+    { id: "models", label: "ML Models" },
   ];
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
+  // Close menu on outside click
+  React.useEffect(() => {
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsDropdownOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setIsUserMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelectCurrency = (code) => {
-    if (code !== currency) {
-      setCurrency(code);
-      const newConfig = SUPPORTED_CURRENCIES[code];
-      toast.info("Currency Updated", `Display currency set to ${newConfig?.label || code}`);
-    }
-    setIsDropdownOpen(false);
-  };
-
   return (
-    <header className="sticky top-0 z-40 bg-brand-bg/85 backdrop-blur-md border-b border-white/10 px-4 sm:px-6 py-2.5">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        <BrandLogo size="sm" onClick={() => setActiveTab("dashboard")} />
+    <header className="sticky top-0 z-50 bg-brand-bg/80 backdrop-blur-xl border-b border-brand-border">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Left: Logo */}
+          <BrandLogo size="default" />
 
-        {/* Desktop Navigation Pill Bar */}
-        <nav className="hidden md:flex items-center gap-1 bg-brand-surface/80 p-1 rounded-2xl border border-white/5 backdrop-blur-md shadow-inner">
-          {desktopNavItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
+          {/* Center: Navigation Tabs (Desktop) */}
+          <nav className="hidden md:flex items-center gap-1 bg-brand-card/50 rounded-2xl p-1">
+            {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  isActive
-                    ? "bg-brand-emerald text-brand-bg shadow-emeraldGlow font-black"
-                    : "text-brand-textSecondary hover:text-white hover:bg-white/5"
+                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${
+                  activeTab === item.id
+                    ? "bg-brand-emerald text-white shadow-emeraldGlow"
+                    : "text-brand-textSecondary hover:text-brand-textPrimary hover:bg-brand-cardHover"
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? "stroke-[2.5]" : ""}`} />
-                <span>{item.label}</span>
+                {item.label}
               </button>
-            );
-          })}
-        </nav>
+            ))}
+          </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick Currency Selector Dropdown */}
-          <div className="relative" ref={dropdownRef}>
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
             <button
-              onClick={() => setIsDropdownOpen((prev) => !prev)}
-              aria-label="Select currency"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-brand-surface border border-white/10 hover:border-brand-emerald/40 text-xs font-semibold text-white transition-all cursor-pointer shadow-sm hover:bg-brand-surface/80"
+              onClick={toggleTheme}
+              className="p-2.5 rounded-xl bg-brand-surface border border-brand-border hover:border-brand-emerald/40 text-brand-textSecondary hover:text-brand-emerald transition-all duration-300 cursor-pointer"
+              title={theme === "dark" ? "Switch to Light" : "Switch to Dark"}
             >
-              <span className="text-sm leading-none">{currentConfig.flag}</span>
-              <span className="font-mono text-brand-emerald font-bold">{currentConfig.symbol}</span>
-              <span className="font-semibold text-slate-200">{currentConfig.code}</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 text-brand-textMuted transition-transform duration-200 ${
-                  isDropdownOpen ? "rotate-180 text-white" : ""
-                }`}
-              />
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
-            {/* Dropdown Menu */}
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-52 bg-[#0d131f] rounded-2xl p-2 shadow-2xl border border-white/15 z-50 animate-fade-in">
-                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-textMuted border-b border-white/10 mb-1">
-                  Display Currency
+            {/* Settings */}
+            <button
+              onClick={onOpenSettings}
+              className="p-2.5 rounded-xl bg-brand-surface border border-brand-border hover:border-brand-emerald/40 text-brand-textSecondary hover:text-brand-emerald transition-all duration-300 cursor-pointer"
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
+            {/* User Menu */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-surface border border-brand-border hover:border-brand-emerald/40 transition-all duration-300 cursor-pointer"
+              >
+                <div className="w-7 h-7 rounded-lg bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center">
+                  <User className="w-3.5 h-3.5 text-brand-emerald" />
                 </div>
-                <div className="space-y-0.5">
-                  {Object.values(SUPPORTED_CURRENCIES).map((item) => {
-                    const isSelected = item.code === currency;
-                    return (
-                      <button
-                        key={item.code}
-                        onClick={() => handleSelectCurrency(item.code)}
-                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                          isSelected
-                            ? "bg-brand-emerald/20 text-brand-emerald font-bold border border-brand-emerald/30"
-                            : "text-slate-200 hover:text-white hover:bg-white/5"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{item.flag}</span>
-                          <span className="font-mono font-bold text-white">{item.symbol}</span>
-                          <span className="font-semibold text-slate-200">{item.code}</span>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-brand-emerald stroke-[2.5]" />}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-1.5 pt-2 border-t border-white/10 px-2 py-1 text-[10px] text-brand-textMuted flex items-center justify-between font-mono">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald animate-pulse" />
-                    <span>Live 1 USD ≈ ₹{(rates?.INR || 96.28).toFixed(2)}</span>
+                <span className="hidden sm:block text-sm font-semibold text-brand-textPrimary max-w-[100px] truncate">
+                  {user?.first_name || "User"}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-brand-textMuted transition-transform duration-200 ${isUserMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {/* Dropdown */}
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-brand-surface border border-brand-border rounded-2xl shadow-2xl overflow-hidden animate-slide-down z-50">
+                  <div className="px-4 py-3 border-b border-brand-border">
+                    <p className="text-sm font-bold text-brand-textPrimary truncate">
+                      {user?.first_name} {user?.last_name}
+                    </p>
+                    <p className="text-xs text-brand-textMuted truncate">{user?.email}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      refreshRates();
-                      toast.info("Forex Syncing", "Retrieving real-time market exchange rates...");
-                    }}
-                    title="Refresh Live Forex Rates"
-                    className="p-1 hover:text-white transition-colors cursor-pointer text-brand-textMuted hover:bg-white/10 rounded-md"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${isLoadingForex ? "animate-spin text-brand-emerald" : ""}`} />
-                  </button>
+                  <div className="p-1.5">
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onOpenSettings?.();
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-brand-textSecondary hover:bg-brand-card hover:text-brand-textPrimary transition-colors cursor-pointer"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>Settings</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        clearAuth();
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-brand-red hover:bg-red-500/5 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* User profile & logout */}
-          <div className="flex items-center gap-2 pl-2 border-l border-white/10">
-            <div className="w-7 h-7 rounded-full bg-brand-surface border border-white/20 flex items-center justify-center text-xs text-brand-emerald font-bold">
-              {user?.first_name
-                ? user.first_name[0].toUpperCase()
-                : user?.email
-                ? user.email[0].toUpperCase()
-                : <User className="w-3.5 h-3.5" />}
+              )}
             </div>
-            <span className="hidden md:inline text-xs text-brand-textSecondary max-w-[140px] truncate">
-              {user?.first_name ? `${user.first_name} ${user.last_name || ""}`.trim() : user?.email}
-            </span>
-            <button
-              onClick={clearAuth}
-              title="Sign Out"
-              className="p-1.5 rounded-lg text-brand-textMuted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </div>

@@ -209,8 +209,19 @@ class SecurityMasterService:
 
         # If input has spaces (e.g. "ALOK INDUSTRY.NS"), strip .NS so it's handled as a company name
         clean_q = re.sub(r"(\.NS|\.BO)$", "", q_raw.upper().strip(), flags=re.IGNORECASE) if has_spaces else q_raw.upper().strip()
+
+        # Alias mapping for demerged / renamed tickers on NSE
+        ALIAS_MAP = {
+            "TATAMOTORS.NS": "TMCV.NS",
+            "TATAMOTORS": "TMCV.NS",
+            "TATAMOTOR": "TMCV.NS",
+        }
+        if clean_q in ALIAS_MAP:
+            clean_q = ALIAS_MAP[clean_q]
+
         bare_sym = clean_q.replace(".NS", "").replace(".BO", "").strip()
         norm_q = normalize_text(clean_q)
+
 
         # 1. Exact Ticker Match (e.g. ALOKINDS.NS, AAPL)
         if clean_q in self._by_ticker:
@@ -501,22 +512,36 @@ class SecurityMasterService:
         return results[:limit]
 
     def _persist_stock_to_db(self, db: Session, stock_dict: Dict[str, Any]):
-        """Persist newly discovered stock to PostgreSQL for permanent local caching."""
+        """Persist newly discovered stock for permanent local caching."""
         try:
-            from sqlalchemy.dialects.postgresql import insert as pg_insert
-            stmt = pg_insert(Stock).values(
-                ticker=stock_dict["ticker"],
-                company_name=stock_dict["company_name"],
-                sector=stock_dict.get("sector"),
-            )
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["ticker"],
-                set_={"company_name": stock_dict["company_name"]},
-            )
-            db.execute(stmt)
-            db.commit()
+            dialect_name = getattr(db.bind.dialect, "name", "") if db.bind else ""
+            if dialect_name == "postgresql":
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+                stmt = pg_insert(Stock).values(
+                    ticker=stock_dict["ticker"],
+                    company_name=stock_dict["company_name"],
+                    sector=stock_dict.get("sector"),
+                )
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["ticker"],
+                    set_={"company_name": stock_dict["company_name"]},
+                )
+                db.execute(stmt)
+                db.commit()
+            else:
+                stock = db.query(Stock).filter(Stock.ticker == stock_dict["ticker"]).first()
+                if stock:
+                    stock.company_name = stock_dict["company_name"]
+                    if stock_dict.get("sector"):
+                        stock.sector = stock_dict.get("sector")
+                else:
+                    db.add(Stock(ticker=stock_dict["ticker"], company_name=stock_dict["company_name"], sector=stock_dict.get("sector")))
+                db.commit()
         except Exception:
-            db.rollback()
+            try:
+                db.rollback()
+            except Exception:
+                pass
 
 
 # Singleton instance shared across services

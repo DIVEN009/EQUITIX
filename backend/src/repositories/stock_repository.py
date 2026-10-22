@@ -30,21 +30,33 @@ class StockRepository:
         sector: Optional[str] = None,
     ) -> Stock:
         ticker_clean = ticker.upper().strip()
-        stmt = pg_insert(Stock).values(
-            ticker=ticker_clean,
-            company_name=company_name,
-            sector=sector,
-        )
-        update_dict = {"company_name": company_name}
-        if sector is not None:
-            update_dict["sector"] = sector
+        dialect_name = getattr(db.bind.dialect, "name", "") if db.bind else ""
+        if dialect_name == "postgresql":
+            stmt = pg_insert(Stock).values(
+                ticker=ticker_clean,
+                company_name=company_name,
+                sector=sector,
+            )
+            update_dict = {"company_name": company_name}
+            if sector is not None:
+                update_dict["sector"] = sector
 
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["ticker"],
-            set_=update_dict,
-        )
-        db.execute(stmt)
-        db.commit()
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["ticker"],
+                set_=update_dict,
+            )
+            db.execute(stmt)
+            db.commit()
+        else:
+            stock = db.query(Stock).filter(Stock.ticker == ticker_clean).first()
+            if stock:
+                stock.company_name = company_name
+                if sector is not None:
+                    stock.sector = sector
+            else:
+                stock = Stock(ticker=ticker_clean, company_name=company_name, sector=sector)
+                db.add(stock)
+            db.commit()
         return self.get_stock(db, ticker_clean)
 
     def search_stocks(self, db: Session, query: str, limit: int = 10) -> List[Stock]:
@@ -60,9 +72,15 @@ class StockRepository:
         ticker_clean = ticker.upper().strip()
         stock = self.get_stock(db, ticker_clean)
         actual_ticker = stock.ticker if stock else ticker_clean
+        from sqlalchemy import cast, String
         return (
             db.query(DailyPrice)
-            .filter(DailyPrice.ticker == actual_ticker)
+            .filter(
+                DailyPrice.ticker == actual_ticker,
+                DailyPrice.close.isnot(None),
+                DailyPrice.close > 0,
+                cast(DailyPrice.close, String) != 'NaN'
+            )
             .order_by(DailyPrice.date.desc())
             .first()
         )
@@ -77,11 +95,15 @@ class StockRepository:
         stock = self.get_stock(db, ticker_clean)
         actual_ticker = stock.ticker if stock else ticker_clean
         cutoff_date = date.today() - timedelta(days=days)
+        from sqlalchemy import cast, String
         return (
             db.query(DailyPrice)
             .filter(
                 DailyPrice.ticker == actual_ticker,
                 DailyPrice.date >= cutoff_date,
+                DailyPrice.close.isnot(None),
+                DailyPrice.close > 0,
+                cast(DailyPrice.close, String) != 'NaN'
             )
             .order_by(DailyPrice.date.asc())
             .all()
@@ -96,50 +118,128 @@ class StockRepository:
         if not records:
             return 0
 
+        import math
         ticker_clean = ticker.upper().strip()
         prepared_records = []
         for r in records:
+            close_val = r.get("close")
+            if close_val is None:
+                continue
+            try:
+                cf = float(close_val)
+                if math.isnan(cf) or math.isinf(cf) or cf <= 0:
+                    continue
+            except (ValueError, TypeError):
+                continue
+
+            open_val = r.get("open")
+            try:
+                of = float(open_val) if open_val is not None else cf
+                if math.isnan(of) or math.isinf(of) or of <= 0:
+                    of = cf
+            except (ValueError, TypeError):
+                of = cf
+
+            high_val = r.get("high")
+            try:
+                hf = float(high_val) if high_val is not None else max(of, cf)
+                if math.isnan(hf) or math.isinf(hf) or hf <= 0:
+                    hf = max(of, cf)
+            except (ValueError, TypeError):
+                hf = max(of, cf)
+
+            low_val = r.get("low")
+            try:
+                lf = float(low_val) if low_val is not None else min(of, cf)
+                if math.isnan(lf) or math.isinf(lf) or lf <= 0:
+                    lf = min(of, cf)
+            except (ValueError, TypeError):
+                lf = min(of, cf)
+
+            vol_val = r.get("volume", 0)
+            try:
+                vf = int(vol_val) if vol_val is not None and not math.isnan(float(vol_val)) else 0
+            except (ValueError, TypeError):
+                vf = 0
+
             prepared_records.append({
                 "ticker": ticker_clean,
                 "date": r["date"],
-                "open": r["open"],
-                "high": r["high"],
-                "low": r["low"],
-                "close": r["close"],
-                "volume": r["volume"],
+                "open": round(of, 2),
+                "high": round(hf, 2),
+                "low": round(lf, 2),
+                "close": round(cf, 2),
+                "volume": vf,
             })
 
-        stmt = pg_insert(DailyPrice).values(prepared_records)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["ticker", "date"],
-            set_={
-                "open": stmt.excluded.open,
-                "high": stmt.excluded.high,
-                "low": stmt.excluded.low,
-                "close": stmt.excluded.close,
-                "volume": stmt.excluded.volume,
-            },
-        )
-        db.execute(stmt)
-        db.commit()
+        if not prepared_records:
+            return 0
+
+        dialect_name = getattr(db.bind.dialect, "name", "") if db.bind else ""
+        if dialect_name == "postgresql":
+            stmt = pg_insert(DailyPrice).values(prepared_records)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["ticker", "date"],
+                set_={
+                    "open": stmt.excluded.open,
+                    "high": stmt.excluded.high,
+                    "low": stmt.excluded.low,
+                    "close": stmt.excluded.close,
+                    "volume": stmt.excluded.volume,
+                },
+            )
+            db.execute(stmt)
+            db.commit()
+        else:
+            for r in prepared_records:
+                existing = (
+                    db.query(DailyPrice)
+                    .filter(DailyPrice.ticker == r["ticker"], DailyPrice.date == r["date"])
+                    .first()
+                )
+                if existing:
+                    existing.open = r["open"]
+                    existing.high = r["high"]
+                    existing.low = r["low"]
+                    existing.close = r["close"]
+                    existing.volume = r["volume"]
+                else:
+                    db.add(DailyPrice(**r))
+            db.commit()
         return len(prepared_records)
 
     def get_predictions(self, db: Session, ticker: str) -> List[Prediction]:
         """
         Retrieve offline-generated ML predictions for a ticker.
         Uses native PostgreSQL DISTINCT ON (model_name, target_date) ordered by generated_at DESC
-        to guarantee only the freshest production predictions are returned and older
-        stale runs or test artifacts are automatically excluded.
+        when running on PostgreSQL, and deduplication via set for SQLite compatibility.
         """
         ticker_clean = ticker.upper().strip()
-        stmt = text("""
-            SELECT DISTINCT ON (model_name, target_date)
-                id, ticker, model_name, target_date, predicted_price, generated_at
-            FROM predictions
-            WHERE ticker = :ticker
-            ORDER BY model_name, target_date, generated_at DESC
-        """)
-        records = db.query(Prediction).from_statement(stmt).params(ticker=ticker_clean).all()
+        dialect_name = getattr(db.bind.dialect, "name", "") if db.bind else ""
+        if dialect_name == "postgresql":
+            stmt = text("""
+                SELECT DISTINCT ON (model_name, target_date)
+                    id, ticker, model_name, target_date, predicted_price, generated_at
+                FROM predictions
+                WHERE ticker = :ticker
+                ORDER BY model_name, target_date, generated_at DESC
+            """)
+            records = db.query(Prediction).from_statement(stmt).params(ticker=ticker_clean).all()
+        else:
+            all_records = (
+                db.query(Prediction)
+                .filter(Prediction.ticker == ticker_clean)
+                .order_by(Prediction.generated_at.desc())
+                .all()
+            )
+            seen = set()
+            records = []
+            for p in all_records:
+                key = (p.model_name, p.target_date)
+                if key not in seen:
+                    seen.add(key)
+                    records.append(p)
+
         today = date.today()
         upcoming = [p for p in records if p.target_date >= today]
         active_records = upcoming if upcoming else records

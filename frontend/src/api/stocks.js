@@ -68,3 +68,18 @@ export const fetchStockBenchmarksApi = async (ticker) => {
   return response.data;
 };
 
+/**
+ * Fetch real-time market open/closed status, session information, and next open schedule.
+ * @param {string} [ticker]
+ * @param {string} [exchange]
+ */
+export const fetchMarketStatusApi = async (ticker, exchange) => {
+  const response = await apiClient.get("/stocks/market-status", {
+    params: {
+      ...(ticker ? { ticker: ticker.toUpperCase() } : {}),
+      ...(exchange ? { exchange: exchange.toUpperCase() } : {}),
+    },
+  });
+  return response.data;
+};
+

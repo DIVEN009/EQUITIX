@@ -1,120 +1,132 @@
 import React, { useState } from "react";
-import { X, Briefcase, Loader2, AlertCircle } from "lucide-react";
-import { useCurrency } from "../utils/currency";
+import { X, Briefcase, DollarSign, Loader2 } from "lucide-react";
 
+/**
+ * Create Portfolio Modal — Name + Initial Cash.
+ */
 export const CreatePortfolioModal = ({ isOpen, onClose, onCreate, isCreating }) => {
-  const { format: formatRupee, symbol } = useCurrency();
-  const [name, setName] = useState("Alpha Quantitative Fund");
-  const [initialCash, setInitialCash] = useState("50000");
-  const [error, setError] = useState("");
+  const [name, setName] = useState("");
+  const [cash, setCash] = useState("100000");
+  const [error, setError] = useState(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-
-    if (!name.trim()) {
-      setError("Please provide a name for your portfolio.");
-      return;
-    }
-
-    const cashNum = Number(initialCash);
-    if (isNaN(cashNum) || cashNum < 0) {
-      setError("Initial cash must be zero or a positive amount.");
-      return;
-    }
-
+    if (!name.trim() || !cash) return;
+    setError(null);
     try {
-      await onCreate({ name: name.trim(), initial_cash: cashNum });
+      await onCreate({ name: name.trim(), initial_cash: Number(cash) });
+      setName("");
+      setCash("100000");
+      setError(null);
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.detail || err?.message || "Failed to create portfolio.");
+      const msg = err?.response?.data?.detail || err?.message || "Failed to create portfolio. Please verify authentication.";
+      setError(msg);
     }
   };
 
+  const presets = [
+    { label: "₹50K", value: "50000" },
+    { label: "₹1L", value: "100000" },
+    { label: "₹5L", value: "500000" },
+    { label: "₹10L", value: "1000000" },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md glass-panel rounded-3xl p-6 shadow-cardGlass relative border border-white/10">
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-brand-emerald border border-brand-emerald/20">
-              <Briefcase className="w-4 h-4" />
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="relative w-full max-w-md bg-brand-surface border border-brand-border rounded-3xl shadow-2xl overflow-hidden animate-scale-in">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-brand-border">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 flex items-center justify-center">
+              <Briefcase className="w-5 h-5 text-brand-emerald" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Create Investment Portfolio</h3>
-              <p className="text-[11px] text-brand-textMuted">Allocate virtual capital and track alpha</p>
+              <h2 className="text-base font-black text-brand-textPrimary">New Portfolio</h2>
+              <p className="text-xs text-brand-textMuted">Allocate virtual capital</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-brand-textMuted hover:text-white hover:bg-white/10 transition-colors"
+            className="p-2 rounded-xl hover:bg-brand-card text-brand-textMuted hover:text-brand-textPrimary transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {error && (
-          <div className="my-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-2.5 text-red-400 text-xs">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div>
-            <label className="block text-[11px] font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {error && (
+            <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-xs text-brand-red font-medium">
+              {error}
+            </div>
+          )}
+          {/* Portfolio Name */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-brand-textSecondary uppercase tracking-wider">
               Portfolio Name
             </label>
             <input
               type="text"
-              required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Deep Learning Alpha Fund"
-              className="w-full bg-brand-surface border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-brand-emerald"
+              placeholder="e.g. Growth Portfolio"
+              className="input-field"
+              required
+              autoFocus
             />
           </div>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-brand-textSecondary uppercase tracking-wider mb-1">
-              Initial Virtual Cash ({symbol})
+          {/* Initial Cash */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-brand-textSecondary uppercase tracking-wider flex items-center gap-1.5">
+              <DollarSign className="w-3.5 h-3.5" />
+              Starting Capital (₹)
             </label>
-            <div className="relative">
-              <span className="font-bold text-brand-textMuted absolute left-3.5 top-1/2 -translate-y-1/2 text-sm">
-                {symbol}
-              </span>
-              <input
-                type="number"
-                step="5000"
-                min="0"
-                required
-                value={initialCash}
-                onChange={(e) => setInitialCash(e.target.value)}
-                placeholder="100000"
-                className="w-full bg-brand-surface border border-white/10 rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-brand-emerald"
-              />
-            </div>
-            <div className="flex gap-2 mt-2">
-              {["50000", "100000", "500000", "1000000"].map((c) => (
+            <input
+              type="number"
+              value={cash}
+              onChange={(e) => setCash(e.target.value)}
+              min="1000"
+              step="1000"
+              className="input-field font-mono text-lg font-bold"
+              required
+            />
+            <div className="flex gap-2 pt-1">
+              {presets.map((p) => (
                 <button
+                  key={p.value}
                   type="button"
-                  key={c}
-                  onClick={() => setInitialCash(c)}
-                  className="px-2.5 py-1 text-[11px] rounded-lg bg-brand-surface border border-white/10 hover:border-brand-emerald/40 text-brand-textSecondary hover:text-white"
+                  onClick={() => setCash(p.value)}
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    cash === p.value
+                      ? "bg-brand-emerald/10 text-brand-emerald border border-brand-emerald/30"
+                      : "bg-brand-card border border-brand-border text-brand-textMuted hover:text-brand-textPrimary"
+                  }`}
                 >
-                  {formatRupee(Number(c), 0)}
+                  {p.label}
                 </button>
               ))}
             </div>
           </div>
 
+          {/* Submit */}
           <button
             type="submit"
-            disabled={isCreating}
-            className="w-full btn-emerald-glow py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 mt-5 cursor-pointer disabled:opacity-50"
+            disabled={isCreating || !name.trim()}
+            className="w-full btn-primary py-3.5 rounded-2xl text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isCreating ? <Loader2 className="w-4 h-4 animate-spin text-brand-bg" /> : <span>Create Portfolio</span>}
+            {isCreating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Creating...</span>
+              </>
+            ) : (
+              <span>Create Portfolio</span>
+            )}
           </button>
         </form>
       </div>

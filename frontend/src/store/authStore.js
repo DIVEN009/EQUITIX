@@ -34,3 +34,10 @@ export const useAuthStore = create((set) => ({
   selectedTicker: "AAPL",
   setSelectedTicker: (ticker) => set({ selectedTicker: ticker.toUpperCase() }),
 }));
+
+if (typeof window !== "undefined") {
+  window.addEventListener("equitix_auth_expired", () => {
+    useAuthStore.getState().clearAuth();
+  });
+}
+

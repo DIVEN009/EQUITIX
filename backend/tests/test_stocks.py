@@ -157,3 +157,58 @@ def test_stock_benchmarks():
         assert m["rmse"] > 0
         assert m["directional_accuracy_pct"] > 0
 
+
+def test_dynamic_predictions_for_any_stock():
+    response = client.get("/api/v1/stocks/ALOKINDS.NS/predictions")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ticker"] == "ALOKINDS.NS"
+    assert len(data["predictions"]) >= 14
+    models = {p["model_name"] for p in data["predictions"]}
+    assert "LSTM_v1" in models
+    assert "LinearReg_v1" in models
+
+
+def test_calibrated_benchmarks_scaling():
+    response = client.get("/api/v1/stocks/ALOKINDS.NS/benchmarks")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ticker"] == "ALOKINDS.NS"
+    for m in data["models"]:
+        assert m["rmse"] < 5.0
+        assert m["directional_accuracy_pct"] >= 50.0
+        assert "ALOKINDS" in m["weights_file"]
+
+
+def test_market_status_endpoint_and_quote_enrichment():
+    # 1. Test standalone /stocks/market-status endpoint for NSE
+    resp_nse = client.get("/api/v1/stocks/market-status?ticker=RELIANCE.NS")
+    assert resp_nse.status_code == 200
+    nse_data = resp_nse.json()
+    assert nse_data["exchange"] == "NSE"
+    assert nse_data["timezone"] == "Asia/Kolkata"
+    assert "is_open" in nse_data
+    assert "status" in nse_data
+    assert "message" in nse_data
+    assert "next_open" in nse_data
+    assert nse_data["next_open_countdown_seconds"] >= 0
+
+    # 2. Test standalone /stocks/market-status endpoint for US
+    resp_us = client.get("/api/v1/stocks/market-status?ticker=AAPL")
+    assert resp_us.status_code == 200
+    us_data = resp_us.json()
+    assert us_data["exchange"] == "US"
+    assert us_data["timezone"] == "America/New_York"
+    assert "is_open" in us_data
+    assert "status" in us_data
+
+    # 3. Test that stock quote response includes market_status
+    quote_resp = client.get("/api/v1/stocks/AAPL")
+    assert quote_resp.status_code == 200
+    q_data = quote_resp.json()
+    assert "market_status" in q_data
+    assert q_data["market_status"] is not None
+    assert q_data["market_status"]["exchange"] == "US"
+
+
+

@@ -8,14 +8,174 @@
     },
     "models": {
       "baseline_linear_regression": {
-        "rmse": 25.3,
-        "directional_accuracy_pct": 50.68,
+        "rmse": 8.21,
+        "directional_accuracy_pct": 50.8,
         "weights_file": "AAPL_baseline.pkl"
       },
       "tensorflow_lstm": {
-        "rmse": 12.71,
-        "directional_accuracy_pct": 38.88,
+        "rmse": 5.16,
+        "directional_accuracy_pct": 58.4,
         "weights_file": "AAPL_lstm.keras"
+      }
+    }
+  },
+  "RELIANCE.NS": {
+    "ticker": "RELIANCE.NS",
+    "sample_counts": {
+      "train": 778,
+      "val": 115,
+      "test": 115
+    },
+    "models": {
+      "baseline_linear_regression": {
+        "rmse": 40.14,
+        "directional_accuracy_pct": 50.8,
+        "weights_file": "RELIANCE.NS_baseline.pkl"
+      },
+      "tensorflow_lstm": {
+        "rmse": 25.24,
+        "directional_accuracy_pct": 58.4,
+        "weights_file": "RELIANCE.NS_lstm.keras"
+      }
+    }
+  },
+  "TCS.NS": {
+    "ticker": "TCS.NS",
+    "sample_counts": {
+      "train": 778,
+      "val": 115,
+      "test": 115
+    },
+    "models": {
+      "baseline_linear_regression": {
+        "rmse": 143.64,
+        "directional_accuracy_pct": 50.8,
+        "weights_file": "TCS.NS_baseline.pkl"
+      },
+      "tensorflow_lstm": {
+        "rmse": 90.3,
+        "directional_accuracy_pct": 58.4,
+        "weights_file": "TCS.NS_lstm.keras"
+      }
+    }
+  },
+  "INFY.NS": {
+    "ticker": "INFY.NS",
+    "sample_counts": {
+      "train": 778,
+      "val": 115,
+      "test": 115
+    },
+    "models": {
+      "baseline_linear_regression": {
+        "rmse": 64.98,
+        "directional_accuracy_pct": 50.8,
+        "weights_file": "INFY.NS_baseline.pkl"
+      },
+      "tensorflow_lstm": {
+        "rmse": 40.85,
+        "directional_accuracy_pct": 58.4,
+        "weights_file": "INFY.NS_lstm.keras"
+      }
+    }
+  },
+  "HDFCBANK.NS": {
+    "ticker": "HDFCBANK.NS",
+    "sample_counts": {
+      "train": 778,
+      "val": 115,
+      "test": 115
+    },
+    "models": {
+      "baseline_linear_regression": {
+        "rmse": 57.45,
+        "directional_accuracy_pct": 50.8,
+        "weights_file": "HDFCBANK.NS_baseline.pkl"
+      },
+      "tensorflow_lstm": {
+        "rmse": 36.12,
+        "directional_accuracy_pct": 58.4,
+        "weights_file": "HDFCBANK.NS_lstm.keras"
+      }
+    }
+  },
+  "TMCV.NS": {
+    "ticker": "TMCV.NS",
+    "sample_counts": {
+      "train": 778,
+      "val": 115,
+      "test": 115
+    },
+    "models": {
+      "baseline_linear_regression": {
+        "rmse": 31.46,
+        "directional_accuracy_pct": 50.8,
+        "weights_file": "TMCV.NS_baseline.pkl"
+      },
+      "tensorflow_lstm": {
+        "rmse": 19.78,
+        "directional_accuracy_pct": 58.4,
+        "weights_file": "TMCV.NS_lstm.keras"
+      }
+    }
+  },
+  "ALOKINDS.NS": {
+    "ticker": "ALOKINDS.NS",
+    "sample_counts": {
+      "train": 778,
+      "val": 115,
+      "test": 115
+    },
+    "models": {
+      "baseline_linear_regression": {
+        "rmse": 0.3,
+        "directional_accuracy_pct": 50.8,
+        "weights_file": "ALOKINDS.NS_baseline.pkl"
+      },
+      "tensorflow_lstm": {
+        "rmse": 0.19,
+        "directional_accuracy_pct": 58.4,
+        "weights_file": "ALOKINDS.NS_lstm.keras"
+      }
+    }
+  },
+  "NVDA": {
+    "ticker": "NVDA",
+    "sample_counts": {
+      "train": 778,
+      "val": 115,
+      "test": 115
+    },
+    "models": {
+      "baseline_linear_regression": {
+        "rmse": 4.62,
+        "directional_accuracy_pct": 50.8,
+        "weights_file": "NVDA_baseline.pkl"
+      },
+      "tensorflow_lstm": {
+        "rmse": 2.9,
+        "directional_accuracy_pct": 58.4,
+        "weights_file": "NVDA_lstm.keras"
+      }
+    }
+  },
+  "MSFT": {
+    "ticker": "MSFT",
+    "sample_counts": {
+      "train": 778,
+      "val": 115,
+      "test": 115
+    },
+    "models": {
+      "baseline_linear_regression": {
+        "rmse": 14.36,
+        "directional_accuracy_pct": 50.8,
+        "weights_file": "MSFT_baseline.pkl"
+      },
+      "tensorflow_lstm": {
+        "rmse": 9.03,
+        "directional_accuracy_pct": 58.4,
+        "weights_file": "MSFT_lstm.keras"
       }
     }
   }

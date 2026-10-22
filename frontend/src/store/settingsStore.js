@@ -43,7 +43,66 @@ const DEFAULT_RATES = {
   GBP: 0.7567,
 };
 
+export const THEME_CONFIGS = {
+  light: {
+    id: "light",
+    label: "Professional Light",
+    description: "Clean institutional financial palette with high-contrast slate typography and crisp white cards",
+    colors: {
+      bg: "#F8FAFC",
+      surface: "#FFFFFF",
+      bullish: "#00A854",
+      bearish: "#E53935",
+      text: "#0F172A",
+    },
+  },
+  dark: {
+    id: "dark",
+    label: "Midnight Dark",
+    description: "Deep Midnight Black with Neon Matrix Green and Electric Coral Red",
+    colors: {
+      bg: "#0B0E14",
+      surface: "#161A22",
+      bullish: "#00E676",
+      bearish: "#FF3D00",
+      text: "#EAECEF",
+    },
+  },
+};
+
 const FOREX_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+export const getStoredTheme = () => {
+  try {
+    const stored = localStorage.getItem("equitix_theme");
+    return stored === "dark" || stored === "light" ? stored : "light";
+  } catch {
+    return "light";
+  }
+};
+
+export const applyThemeToDocument = (theme) => {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  if (theme === "dark") {
+    root.classList.add("dark");
+    root.setAttribute("data-theme", "dark");
+    root.style.colorScheme = "dark";
+  } else {
+    root.classList.remove("dark");
+    root.setAttribute("data-theme", "light");
+    root.style.colorScheme = "light";
+  }
+};
+
+// Apply theme immediately upon store file evaluation
+if (typeof window !== "undefined") {
+  try {
+    applyThemeToDocument(getStoredTheme());
+  } catch {
+    // Ignore initial apply error
+  }
+}
 
 const getStoredCurrency = () => {
   try {
@@ -73,10 +132,28 @@ const getStoredRates = () => {
 };
 
 export const useSettingsStore = create((set, get) => ({
+  theme: getStoredTheme(),
   currency: getStoredCurrency(),
   rates: getStoredRates(),
   lastUpdated: null,
   isLoadingForex: false,
+
+  setTheme: (newTheme) => {
+    if (newTheme !== "light" && newTheme !== "dark") return;
+    try {
+      localStorage.setItem("equitix_theme", newTheme);
+    } catch {
+      // Ignore storage errors
+    }
+    applyThemeToDocument(newTheme);
+    set({ theme: newTheme });
+  },
+
+  toggleTheme: () => {
+    const currentTheme = get().theme;
+    const nextTheme = currentTheme === "dark" ? "light" : "dark";
+    get().setTheme(nextTheme);
+  },
 
   setCurrency: (newCurrency) => {
     if (!SUPPORTED_CURRENCIES[newCurrency]) return;

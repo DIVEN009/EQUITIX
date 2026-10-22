@@ -16,6 +16,8 @@ import {
   X,
   Activity,
   RefreshCw,
+  Moon,
+  AlertCircle,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import {
@@ -27,6 +29,9 @@ import {
 import { usePortfolios, usePortfolioDetail } from "../hooks/usePortfolios";
 import { StockChart } from "../components/StockChart";
 import { TransactionModal } from "../components/TransactionModal";
+import { MarketStatusBanner } from "../components/MarketStatusBanner";
+import { MarketScheduleModal } from "../components/MarketScheduleModal";
+import { calculateMarketStatus } from "../utils/marketSchedule";
 import { toast } from "../store/toastStore";
 import { useCurrency, getStockNativeCurrency } from "../utils/currency";
 import { searchStocksApi, resolveStockApi } from "../api/stocks";
@@ -83,6 +88,8 @@ export const MarketExplorerPage = () => {
   });
 
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [simulationMode, setSimulationMode] = useState("auto");
   const searchContainerRef = useRef(null);
   const trendingRef = useRef(null);
 
@@ -248,6 +255,16 @@ export const MarketExplorerPage = () => {
       ? "BSE"
       : "NASDAQ/NYSE");
 
+  // Real-time market status (open, closed, weekend, holiday, after-hours)
+  const liveMarketStatus = React.useMemo(() => {
+    return calculateMarketStatus(
+      selectedTicker,
+      effectiveExchange,
+      new Date(),
+      simulationMode
+    );
+  }, [selectedTicker, effectiveExchange, simulationMode]);
+
   const change = quote?.change ?? (history?.data?.length > 1 && history.data[0].open ? currentPrice - history.data[0].open : 0);
   const changePercent = quote?.change_percent ?? (history?.data?.length > 1 && history.data[0].open ? ((currentPrice - history.data[0].open) / history.data[0].open) * 100 : 0);
   const isUp = change >= 0;
@@ -387,7 +404,7 @@ export const MarketExplorerPage = () => {
               }}
               onFocus={() => setIsSearchOpen(true)}
               placeholder="Search ticker or company (e.g. AAPL, NVDA, RELIANCE)..."
-              className="w-full bg-brand-surface border border-white/10 hover:border-white/20 rounded-2xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-white placeholder-brand-textMuted focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald/40 transition-all shadow-inner"
+              className="w-full bg-brand-surface border border-brand-border hover:border-brand-border-hover rounded-2xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-brand-textPrimary placeholder-brand-textMuted focus:outline-none focus:border-brand-emerald focus:ring-1 focus:ring-brand-emerald/40 transition-all shadow-xs"
             />
             {isSearching ? (
               <div className="absolute right-3.5 inset-y-0 flex items-center justify-center pointer-events-none">
@@ -400,7 +417,7 @@ export const MarketExplorerPage = () => {
                   setSearchInput("");
                   setIsSearchOpen(false);
                 }}
-                className="absolute right-3.5 inset-y-0 flex items-center justify-center text-brand-textMuted hover:text-white text-xs p-1"
+                className="absolute right-3.5 inset-y-0 flex items-center justify-center text-brand-textMuted hover:text-brand-textPrimary text-xs p-1"
               >
                 ✕
               </button>
@@ -409,7 +426,7 @@ export const MarketExplorerPage = () => {
 
           {/* Autocomplete Dropdown Menu */}
           {isSearchOpen && (
-            <div className="absolute z-50 left-0 right-0 mt-2 bg-[#0d131f] border border-white/15 rounded-2xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto divide-y divide-white/5 backdrop-blur-xl">
+            <div className="absolute z-50 left-0 right-0 mt-2 bg-brand-surface border border-brand-border rounded-2xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto divide-y divide-brand-border backdrop-blur-xl">
               {searchInput.trim().length === 0 ? (
                 /* Recent / Popular Quick-Picks when focused but empty */
                 <div className="p-3 space-y-2">
@@ -423,10 +440,10 @@ export const MarketExplorerPage = () => {
                         key={t}
                         type="button"
                         onClick={() => handleSelectTicker(t)}
-                        className="px-3 py-2 rounded-xl bg-white/5 hover:bg-brand-emerald/15 hover:border-brand-emerald/30 border border-white/5 text-left text-xs font-semibold text-white flex items-center justify-between transition-colors cursor-pointer group"
+                        className="px-3 py-2 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-brand-emerald/15 hover:border-brand-emerald/30 border border-brand-border text-left text-xs font-semibold text-brand-textPrimary flex items-center justify-between transition-colors cursor-pointer group"
                       >
                         <span className="font-mono text-brand-emerald group-hover:scale-105 transition-transform">{t}</span>
-                        <span className="text-[10px] text-brand-textMuted group-hover:text-white">Explore →</span>
+                        <span className="text-[10px] text-brand-textMuted group-hover:text-brand-textPrimary">Explore →</span>
                       </button>
                     ))}
                   </div>
@@ -438,7 +455,7 @@ export const MarketExplorerPage = () => {
                 </div>
               ) : searchResults && searchResults.length > 0 ? (
                 <>
-                  <div className="px-3.5 py-1.5 bg-white/5 flex items-center justify-between text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">
+                  <div className="px-3.5 py-1.5 bg-black/5 dark:bg-white/5 flex items-center justify-between text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">
                     <span>Matching Shares ({searchResults.length})</span>
                     <span>Live Exchange Results</span>
                   </div>
@@ -450,11 +467,11 @@ export const MarketExplorerPage = () => {
                       <button
                         key={stock.ticker}
                         onClick={() => handleSelectTicker(stock.ticker)}
-                        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/10 transition-colors text-left cursor-pointer group border-b border-white/5 last:border-b-0"
+                        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-left cursor-pointer group border-b border-brand-border last:border-b-0"
                       >
                         <div className="flex flex-col min-w-0 mr-3">
                           <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-white text-xs group-hover:text-brand-emerald transition-colors font-mono">
+                            <span className="font-extrabold text-brand-textPrimary text-xs group-hover:text-brand-emerald transition-colors font-mono">
                               {stock.ticker}
                             </span>
                             <span
@@ -474,7 +491,7 @@ export const MarketExplorerPage = () => {
                               {isIndian ? "₹ INR" : "$ USD"}
                             </span>
                           </div>
-                          <span className="text-xs text-brand-textSecondary group-hover:text-slate-200 transition-colors truncate mt-0.5 font-medium">
+                          <span className="text-xs text-brand-textSecondary group-hover:text-brand-textPrimary transition-colors truncate mt-0.5 font-medium">
                             {stock.company_name}
                           </span>
                         </div>
@@ -488,7 +505,7 @@ export const MarketExplorerPage = () => {
                   {!searchInput.includes(" ") && searchInput.trim().length <= 10 && (
                     <button
                       onClick={() => handleSelectTicker(searchInput.trim().toUpperCase())}
-                      className="w-full px-4 py-2.5 bg-brand-surface/70 hover:bg-brand-emerald/15 text-left text-xs font-semibold text-brand-cyan hover:text-white flex items-center justify-between transition-colors cursor-pointer border-t border-white/10"
+                      className="w-full px-4 py-2.5 bg-brand-surface/70 hover:bg-brand-emerald/15 text-left text-xs font-semibold text-brand-cyan hover:text-brand-textPrimary flex items-center justify-between transition-colors cursor-pointer border-t border-brand-border"
                     >
                       <span>Explore ticker symbol <strong>"{searchInput.trim().toUpperCase()}"</strong> directly</span>
                       <span>→</span>
@@ -527,7 +544,7 @@ export const MarketExplorerPage = () => {
           <button
             type="button"
             onClick={() => scrollTrending("left")}
-            className="hidden sm:flex p-1.5 rounded-xl bg-brand-surface/90 hover:bg-white/10 border border-white/10 hover:border-white/20 text-brand-textMuted hover:text-white transition-all shrink-0 cursor-pointer shadow-sm z-10"
+            className="hidden sm:flex p-1.5 rounded-xl bg-brand-surface hover:bg-brand-cardHover border border-brand-border hover:border-brand-border-hover text-brand-textMuted hover:text-brand-textPrimary transition-all shrink-0 cursor-pointer shadow-xs z-10"
             title="Scroll left"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -551,8 +568,8 @@ export const MarketExplorerPage = () => {
                 onClick={() => handleSelectTicker(t)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all cursor-pointer ${
                   selectedTicker === t
-                    ? "bg-brand-emerald text-brand-bg font-bold shadow-emeraldGlow scale-105"
-                    : "bg-brand-surface text-brand-textSecondary hover:text-white border border-white/5 hover:border-white/20"
+                    ? "bg-brand-emerald text-white dark:text-[#0B0E14] font-bold shadow-emeraldGlow scale-105"
+                    : "bg-brand-surface text-brand-textSecondary hover:text-brand-textPrimary border border-brand-border hover:border-brand-border-hover"
                 }`}
               >
                 {t}
@@ -563,7 +580,7 @@ export const MarketExplorerPage = () => {
           <button
             type="button"
             onClick={() => scrollTrending("right")}
-            className="hidden sm:flex p-1.5 rounded-xl bg-brand-surface/90 hover:bg-white/10 border border-white/10 hover:border-white/20 text-brand-textMuted hover:text-white transition-all shrink-0 cursor-pointer shadow-sm z-10"
+            className="hidden sm:flex p-1.5 rounded-xl bg-brand-surface hover:bg-brand-cardHover border border-brand-border hover:border-brand-border-hover text-brand-textMuted hover:text-brand-textPrimary transition-all shrink-0 cursor-pointer shadow-xs z-10"
             title="Scroll right"
           >
             <ChevronRight className="w-3.5 h-3.5" />
@@ -571,17 +588,27 @@ export const MarketExplorerPage = () => {
         </div>
       </div>
 
+      {/* Real-time Market Status Alert Banner (Notifies customer when market is closed or open) */}
+      <MarketStatusBanner
+        ticker={selectedTicker}
+        exchange={effectiveExchange}
+        latestTradingDate={quote?.latest_trading_date}
+        backendStatus={quote?.market_status}
+        simulationMode={simulationMode}
+        onOpenSchedule={() => setIsScheduleModalOpen(true)}
+      />
+
       {/* Main 12-Column Responsive Desktop Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (8 cols): Primary Chart Card + AI Forecast Insights */}
         <div className="lg:col-span-8 space-y-6">
           {/* Primary Stock Detail & Chart Card */}
-          <div className="glass-panel rounded-3xl p-5 sm:p-6 space-y-5 border border-white/10 shadow-cardGlass">
+          <div className="glass-panel rounded-3xl p-5 sm:p-6 space-y-5 border border-brand-border shadow-cardGlass">
             {/* Ticker Header & Live Quote */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  <h2 className="text-xl sm:text-2xl font-black text-brand-textPrimary tracking-tight">
                     {quote?.company_name || history?.company_name || selectedTicker}
                   </h2>
                   <span className="font-mono font-bold text-xs text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/25 px-2 py-0.5 rounded-md">
@@ -590,26 +617,26 @@ export const MarketExplorerPage = () => {
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider font-mono ${
                       effectiveExchange === "NSE"
-                        ? "bg-orange-500/15 text-orange-400 border-orange-500/30"
+                        ? "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30"
                         : effectiveExchange === "BSE"
-                        ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                        : "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30"
+                        : "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30"
                     }`}
                   >
                     {effectiveExchange}
                   </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-brand-textMuted border border-white/5">
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-brand-textMuted border border-brand-border">
                     {effectiveCurrency}
                   </span>
                   {(quote?.sector || history?.sector) && (
-                    <span className="text-[10px] text-brand-textMuted bg-brand-surface px-2.5 py-0.5 rounded-md border border-white/5">
+                    <span className="text-[10px] text-brand-textMuted bg-brand-surface px-2.5 py-0.5 rounded-md border border-brand-border">
                       {quote?.sector || history?.sector}
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-baseline gap-3 mt-1.5 flex-wrap">
-                  <span className="text-3xl sm:text-4xl font-black text-white tracking-tight font-mono">
+                  <span className="text-3xl sm:text-4xl font-black text-brand-textPrimary tracking-tight font-mono">
                     {currentPrice ? formatStock(currentPrice, selectedTicker, 2, effectiveCurrency) : "---"}
                   </span>
                   <div
@@ -625,38 +652,54 @@ export const MarketExplorerPage = () => {
                     <span>
                       {isUp ? "+" : ""}
                       {formatStock(change, selectedTicker, 2, effectiveCurrency)} ({isUp ? "+" : ""}
-                      {changePercent.toFixed(2)}%)
+                      {(Number(changePercent) || 0).toFixed(2)}%)
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-1.5">
-                <span
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                <button
+                  type="button"
+                  onClick={() => setIsScheduleModalOpen(true)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
                     quoteError || historyError
-                      ? "bg-red-500/10 text-red-400 border-red-500/30"
+                      ? "bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/30"
+                      : !liveMarketStatus.isOpen
+                      ? "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/35 hover:bg-amber-500/25 shadow-sm"
                       : quote?.source === "live"
                       ? "bg-emerald-500/10 text-brand-emerald border-brand-emerald/30 shadow-sm"
-                      : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                      : "bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/30"
                   }`}
+                  title="Click to view full market schedule and holiday calendar"
                 >
-                  {quoteError || historyError
-                    ? "● Unavailable"
-                    : quote?.source === "live"
-                    ? "● Live Stream"
-                    : "Cached DB"}
-                </span>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      quoteError || historyError
+                        ? "bg-red-400"
+                        : !liveMarketStatus.isOpen
+                        ? "bg-amber-400 animate-pulse"
+                        : "bg-brand-emerald animate-ping"
+                    }`}
+                  />
+                  <span>
+                    {quoteError || historyError
+                      ? "Unavailable"
+                      : !liveMarketStatus.isOpen
+                      ? "Market Closed"
+                      : "Market Open"}
+                  </span>
+                </button>
                 <span className="text-[10px] text-brand-textMuted flex items-center gap-1 font-mono">
                   <Clock className="w-3 h-3" />
-                  {quote?.latest_trading_date || "Market Close"}
+                  {quote?.latest_trading_date ? `Session: ${quote.latest_trading_date}` : "Session Close"}
                 </span>
               </div>
             </div>
 
             {/* Timeframe Selectors */}
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex gap-1 bg-brand-surface p-1 rounded-2xl border border-white/5 overflow-x-auto">
+              <div className="flex gap-1 bg-brand-surface p-1 rounded-2xl border border-brand-border overflow-x-auto shadow-xs">
                 {TIMEFRAMES.map((tf) => {
                   const isSelected = selectedTimeframe.days === tf.days;
                   return (
@@ -665,8 +708,8 @@ export const MarketExplorerPage = () => {
                       onClick={() => setSelectedTimeframe(tf)}
                       className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-all cursor-pointer ${
                         isSelected
-                          ? "bg-brand-card text-brand-emerald font-bold shadow-sm border border-white/10"
-                          : "text-brand-textMuted hover:text-white"
+                          ? "bg-brand-card text-brand-emerald font-bold shadow-xs border border-brand-border"
+                          : "text-brand-textMuted hover:text-brand-textPrimary"
                       }`}
                     >
                       {tf.label}
@@ -735,11 +778,11 @@ export const MarketExplorerPage = () => {
 
             {/* Dedicated 1-Day Intraday Session Analysis */}
             {selectedTimeframe.label === "1D" && intradayStats && (
-              <div className="pt-4 border-t border-white/10 space-y-4">
+              <div className="pt-4 border-t border-brand-border space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Activity className="w-4 h-4 text-brand-emerald" />
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                    <h4 className="text-xs font-bold text-brand-textPrimary uppercase tracking-wider">
                       1-Day Session Intelligence & Analytics
                     </h4>
                   </div>
@@ -749,17 +792,17 @@ export const MarketExplorerPage = () => {
                 </div>
 
                 {/* Day Range Needle Visualizer */}
-                <div className="p-4 rounded-2xl bg-brand-surface/70 border border-white/5 space-y-2">
+                <div className="p-4 rounded-2xl bg-brand-surface border border-brand-border space-y-2 shadow-xs">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-brand-textMuted text-[11px] font-medium">Day Range</span>
                     <span className="text-[11px] text-brand-textSecondary font-mono">
-                      Current: <span className="text-white font-bold">{formatStock(currentPrice, selectedTicker)}</span> ({intradayStats.rangePositionPct.toFixed(0)}% of range)
+                      Current: <span className="text-brand-textPrimary font-bold">{formatStock(currentPrice, selectedTicker)}</span> ({intradayStats.rangePositionPct.toFixed(0)}% of range)
                     </span>
                   </div>
 
                   {/* Visual Slider Bar */}
                   <div className="relative pt-1 pb-1">
-                    <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden relative">
+                    <div className="h-2 w-full bg-black/10 dark:bg-white/10 rounded-full overflow-hidden relative">
                       <div
                         className="h-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 rounded-full"
                         style={{ width: "100%" }}
@@ -776,7 +819,7 @@ export const MarketExplorerPage = () => {
 
                   <div className="flex justify-between text-[11px] font-mono pt-1">
                     <span className="text-brand-textMuted">
-                      Low: <span className="text-red-400 font-bold">{formatStock(intradayStats.dayLow, selectedTicker, 2, quote?.currency)}</span>
+                      Low: <span className="text-red-500 dark:text-red-400 font-bold">{formatStock(intradayStats.dayLow, selectedTicker, 2, quote?.currency)}</span>
                     </span>
                     <span className="text-brand-textMuted">
                       High: <span className="text-brand-emerald font-bold">{formatStock(intradayStats.dayHigh, selectedTicker, 2, quote?.currency)}</span>
@@ -786,11 +829,11 @@ export const MarketExplorerPage = () => {
 
                 {/* 4-Column Intraday Metrics Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div className="p-3.5 rounded-2xl bg-brand-surface/70 border border-white/5">
+                  <div className="p-3.5 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                     <span className="text-[10px] text-brand-textMuted uppercase font-semibold tracking-wider">
                       Session Open
                     </span>
-                    <div className="font-bold text-white text-xs mt-1 font-mono">
+                    <div className="font-bold text-brand-textPrimary text-xs mt-1 font-mono">
                       {formatStock(intradayStats.open, selectedTicker, 2, quote?.currency)}
                     </div>
                     <span className="text-[10px] text-brand-textMuted block mt-0.5 font-mono">
@@ -798,7 +841,7 @@ export const MarketExplorerPage = () => {
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-brand-surface/70 border border-white/5">
+                  <div className="p-3.5 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                     <span className="text-[10px] text-brand-textMuted uppercase font-semibold tracking-wider">
                       Intraday VWAP
                     </span>
@@ -810,11 +853,11 @@ export const MarketExplorerPage = () => {
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-brand-surface/70 border border-white/5">
+                  <div className="p-3.5 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                     <span className="text-[10px] text-brand-textMuted uppercase font-semibold tracking-wider">
                       Intraday Spread
                     </span>
-                    <div className="font-bold text-white text-xs mt-1 font-mono">
+                    <div className="font-bold text-brand-textPrimary text-xs mt-1 font-mono">
                       {intradayStats.intradaySpreadPct.toFixed(2)}%
                     </div>
                     <span className="text-[10px] text-brand-textMuted block mt-0.5">
@@ -822,7 +865,7 @@ export const MarketExplorerPage = () => {
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-brand-surface/70 border border-white/5">
+                  <div className="p-3.5 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                     <span className="text-[10px] text-brand-textMuted uppercase font-semibold tracking-wider">
                       Intraday Bias
                     </span>
@@ -838,39 +881,39 @@ export const MarketExplorerPage = () => {
             )}
 
             {/* Fundamental Market Intelligence Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-white/5 text-xs">
-              <div className="p-3.5 rounded-2xl bg-brand-surface/70 border border-white/5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-brand-border text-xs">
+              <div className="p-3.5 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                 <span className="text-[10px] text-brand-textMuted uppercase font-semibold tracking-wider">
                   52W Range
                 </span>
-                <div className="font-bold text-white text-xs mt-1 font-mono">
+                <div className="font-bold text-brand-textPrimary text-xs mt-1 font-mono">
                   {formatStock(stats.low52, selectedTicker, 2, quote?.currency)} - {formatStock(stats.high52, selectedTicker, 2, quote?.currency)}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-brand-surface/70 border border-white/5">
+              <div className="p-3.5 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                 <span className="text-[10px] text-brand-textMuted uppercase font-semibold tracking-wider">
                   Latest Volume
                 </span>
-                <div className="font-bold text-white text-xs mt-1 font-mono">
+                <div className="font-bold text-brand-textPrimary text-xs mt-1 font-mono">
                   {stats.latestVolume ? stats.latestVolume.toLocaleString() : "---"}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-brand-surface/70 border border-white/5">
+              <div className="p-3.5 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                 <span className="text-[10px] text-brand-textMuted uppercase font-semibold tracking-wider">
                   Average Volume
                 </span>
-                <div className="font-bold text-white text-xs mt-1 font-mono">
+                <div className="font-bold text-brand-textPrimary text-xs mt-1 font-mono">
                   {stats.avgVolume ? stats.avgVolume.toLocaleString() : "---"}
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-brand-surface/70 border border-white/5">
+              <div className="p-3.5 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                 <span className="text-[10px] text-brand-textMuted uppercase font-semibold tracking-wider">
                   Prev Close
                 </span>
-                <div className="font-bold text-white text-xs mt-1 font-mono">
+                <div className="font-bold text-brand-textPrimary text-xs mt-1 font-mono">
                   {quote?.previous_close ? formatStock(quote.previous_close, selectedTicker, 2, quote?.currency) : "---"}
                 </div>
               </div>
@@ -885,7 +928,7 @@ export const MarketExplorerPage = () => {
                   <Brain className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-brand-textPrimary flex items-center gap-2">
                     <span>Equitix Machine Learning Intelligence</span>
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-brand-emerald/20 text-brand-emerald font-extrabold tracking-wider">
                       7-DAY HORIZON
@@ -899,7 +942,7 @@ export const MarketExplorerPage = () => {
 
               <button
                 onClick={() => setActiveTab("models")}
-                className="text-xs text-brand-emerald hover:text-white flex items-center gap-1 font-bold transition-colors cursor-pointer bg-brand-emerald/10 hover:bg-brand-emerald/20 px-3 py-1.5 rounded-xl border border-brand-emerald/20"
+                className="text-xs text-brand-emerald hover:text-brand-textPrimary flex items-center gap-1 font-bold transition-colors cursor-pointer bg-brand-emerald/10 hover:bg-brand-emerald/20 px-3 py-1.5 rounded-xl border border-brand-emerald/20"
               >
                 <span>View Predictions</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -907,8 +950,8 @@ export const MarketExplorerPage = () => {
             </div>
 
             {mlForecast ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-white/10">
-                <div className="p-3 rounded-2xl bg-brand-surface/60 border border-white/5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-brand-border">
+                <div className="p-3 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                   <span className="text-[10px] text-brand-textMuted uppercase font-semibold">Directional Bias</span>
                   <div className="mt-1 flex items-center gap-2">
                     <span
@@ -933,14 +976,14 @@ export const MarketExplorerPage = () => {
                   </div>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-brand-surface/60 border border-white/5">
+                <div className="p-3 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                   <span className="text-[10px] text-brand-textMuted uppercase font-semibold">Target Price (T+7)</span>
-                  <div className="mt-1 text-sm font-black text-white font-mono">
+                  <div className="mt-1 text-sm font-black text-brand-textPrimary font-mono">
                     {formatStock(mlForecast.targetPrice, selectedTicker)}
                   </div>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-brand-surface/60 border border-white/5">
+                <div className="p-3 rounded-2xl bg-brand-surface border border-brand-border shadow-xs">
                   <span className="text-[10px] text-brand-textMuted uppercase font-semibold">Inference Model</span>
                   <div className="mt-1 text-xs font-bold text-brand-cyan truncate font-mono">
                     {mlForecast.modelName || "Deep LSTM"}
@@ -948,7 +991,7 @@ export const MarketExplorerPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-brand-textMuted">
+              <div className="pt-2 border-t border-brand-border flex items-center justify-between text-xs text-brand-textMuted">
                 <span>Deep LSTM batch inference generating daily forecasts.</span>
                 <span className="text-[10px] text-brand-emerald font-semibold">Active Cron</span>
               </div>
@@ -959,13 +1002,13 @@ export const MarketExplorerPage = () => {
         {/* Right Sidebar Column (4 cols): Quick Trade + Watchlist + FX Rates */}
         <div className="lg:col-span-4 space-y-6">
           {/* Quick Trade / Action Card */}
-          <div className="glass-panel rounded-3xl p-6 space-y-5 border border-white/10 shadow-cardGlass">
+          <div className="glass-panel rounded-3xl p-6 space-y-5 border border-brand-border shadow-cardGlass">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-emerald-500/10 text-brand-emerald">
                   <Zap className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-brand-textPrimary uppercase tracking-wider">
                   Order Execution
                 </h3>
               </div>
@@ -974,18 +1017,18 @@ export const MarketExplorerPage = () => {
               </span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-brand-surface/80 border border-white/5 space-y-2">
+            <div className="p-4 rounded-2xl bg-brand-surface border border-brand-border space-y-2 shadow-xs">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-brand-textMuted">Selected Asset</span>
-                <span className="font-extrabold text-white font-mono">{selectedTicker}</span>
+                <span className="font-extrabold text-brand-textPrimary font-mono">{selectedTicker}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-brand-textMuted">Live Price</span>
-                <span className="font-extrabold text-white font-mono">
+                <span className="font-extrabold text-brand-textPrimary font-mono">
                   {currentPrice ? formatStock(currentPrice, selectedTicker, 2, quote?.currency) : "---"}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-xs pt-1 border-t border-white/5">
+              <div className="flex justify-between items-center text-xs pt-1 border-t border-brand-border">
                 <span className="text-brand-textMuted">Active Portfolio</span>
                 <span className="text-brand-textSecondary truncate max-w-[140px] text-right font-medium">
                   {portfolio?.name || "Primary Portfolio"}
@@ -1001,21 +1044,44 @@ export const MarketExplorerPage = () => {
 
             {/* Action Buttons */}
             <div className="space-y-2.5">
+              {!liveMarketStatus.isOpen && (
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs flex items-start gap-2.5">
+                  <Moon className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5 min-w-0">
+                    <span className="font-bold text-amber-950 dark:text-amber-200 block text-[11px]">
+                      Market is Closed ({liveMarketStatus.session})
+                    </span>
+                    <p className="text-[11px] text-amber-900/90 dark:text-amber-200/80 leading-snug">
+                      Simulated buy order will execute at the last close price of{" "}
+                      <strong className="text-amber-950 dark:text-white font-mono font-bold">
+                        {currentPrice ? formatStock(currentPrice, selectedTicker, 2, quote?.currency) : "---"}
+                      </strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={() => setIsTxModalOpen(true)}
                 disabled={!currentPrice || quoteError || historyError}
-                className="w-full btn-emerald-glow py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 shadow-emeraldGlow cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full btn-primary py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 shadow-emeraldGlow cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingCart className="w-4 h-4" />
-                <span>{!currentPrice || quoteError || historyError ? "Asset Unavailable" : `Buy ${selectedTicker}`}</span>
+                <span>
+                  {!currentPrice || quoteError || historyError
+                    ? "Asset Unavailable"
+                    : !liveMarketStatus.isOpen
+                    ? `Place Simulated Buy (${selectedTicker})`
+                    : `Buy ${selectedTicker}`}
+                </span>
               </button>
 
               <button
                 onClick={() => toggleWatchlist(selectedTicker)}
                 className={`w-full py-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   isCurrentInWatchlist
-                    ? "bg-brand-card border-brand-emerald/40 text-brand-emerald"
-                    : "bg-brand-surface border-white/10 hover:border-white/20 text-white"
+                    ? "bg-brand-card border-brand-emerald text-brand-emerald"
+                    : "bg-brand-surface border-brand-border hover:border-brand-border-hover text-brand-textPrimary"
                 }`}
               >
                 {isCurrentInWatchlist ? (
@@ -1029,7 +1095,7 @@ export const MarketExplorerPage = () => {
           </div>
 
           {/* Saved Watchlist Card */}
-          <div className="glass-panel rounded-3xl p-6 space-y-4 border border-white/10 shadow-cardGlass">
+          <div className="glass-panel rounded-3xl p-6 space-y-4 border border-brand-border shadow-cardGlass">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-brand-textSecondary uppercase tracking-wider">
                 Saved Watchlist ({watchlist.length})
@@ -1050,8 +1116,8 @@ export const MarketExplorerPage = () => {
                       key={t}
                       className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
                         isSelected
-                          ? "bg-brand-card border-brand-emerald/40 text-brand-emerald shadow-sm"
-                          : "bg-brand-surface/70 border-white/5 text-white hover:border-white/20 hover:bg-brand-surface"
+                          ? "bg-brand-card border-brand-emerald text-brand-emerald shadow-xs"
+                          : "bg-brand-surface border-brand-border text-brand-textPrimary hover:border-brand-border-hover hover:bg-brand-cardHover"
                       }`}
                     >
                       <button
@@ -1074,7 +1140,7 @@ export const MarketExplorerPage = () => {
                           e.stopPropagation();
                           toggleWatchlist(t);
                         }}
-                        className="ml-2 p-1 text-brand-textMuted hover:text-red-400 transition-colors cursor-pointer"
+                        className="ml-2 p-1 text-brand-textMuted hover:text-red-500 transition-colors cursor-pointer"
                         title="Remove from watchlist"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -1087,11 +1153,11 @@ export const MarketExplorerPage = () => {
           </div>
 
           {/* Live Currency & FX Rates Intelligence Card */}
-          <div className="bg-[#0d131f] rounded-3xl p-6 space-y-3 border border-white/15 shadow-cardGlass">
+          <div className="glass-panel rounded-3xl p-6 space-y-3 border border-brand-border shadow-cardGlass">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs">
                 <Globe className="w-4 h-4 text-brand-cyan" />
-                <span className="font-bold text-white uppercase tracking-wider text-[11px]">
+                <span className="font-bold text-brand-textPrimary uppercase tracking-wider text-[11px]">
                   Global Forex Stream
                 </span>
               </div>
@@ -1102,7 +1168,7 @@ export const MarketExplorerPage = () => {
                   toast.info("Forex Syncing", "Refreshing real-time currency conversion rates...");
                 }}
                 title="Refresh Live Forex Rates"
-                className="p-1 hover:text-white transition-colors cursor-pointer text-brand-textMuted hover:bg-white/10 rounded-lg flex items-center gap-1.5 text-[10px] font-semibold"
+                className="p-1 hover:text-brand-textPrimary transition-colors cursor-pointer text-brand-textMuted hover:bg-black/5 dark:hover:bg-white/10 rounded-lg flex items-center gap-1.5 text-[10px] font-semibold"
               >
                 <RefreshCw className={`w-3 h-3 ${isLoadingForex ? "animate-spin text-brand-cyan" : ""}`} />
                 <span>Sync</span>
@@ -1110,9 +1176,9 @@ export const MarketExplorerPage = () => {
             </div>
 
             <div className="space-y-2 text-xs pt-1">
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-brand-surface border border-brand-border shadow-xs">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-slate-200">USD / INR</span>
+                  <span className="font-mono font-bold text-brand-textPrimary">USD / INR</span>
                   <span className="text-[10px] text-brand-textMuted">Live FX</span>
                 </div>
                 <span className="font-mono font-bold text-brand-emerald">
@@ -1120,9 +1186,9 @@ export const MarketExplorerPage = () => {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-brand-surface border border-brand-border shadow-xs">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-slate-200">EUR / USD</span>
+                  <span className="font-mono font-bold text-brand-textPrimary">EUR / USD</span>
                   <span className="text-[10px] text-brand-textMuted">Live FX</span>
                 </div>
                 <span className="font-mono font-bold text-brand-cyan">
@@ -1130,9 +1196,9 @@ export const MarketExplorerPage = () => {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-brand-surface border border-brand-border shadow-xs">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-slate-200">GBP / USD</span>
+                  <span className="font-mono font-bold text-brand-textPrimary">GBP / USD</span>
                   <span className="text-[10px] text-brand-textMuted">Live FX</span>
                 </div>
                 <span className="font-mono font-bold text-brand-cyan">
@@ -1163,6 +1229,17 @@ export const MarketExplorerPage = () => {
           onExecute={handleExecuteTx}
           isExecuting={isExecutingTx}
           error={txError}
+        />
+      )}
+
+      {/* Exchange Market Schedule & Holiday Modal */}
+      {isScheduleModalOpen && (
+        <MarketScheduleModal
+          isOpen={isScheduleModalOpen}
+          onClose={() => setIsScheduleModalOpen(false)}
+          currentStatus={liveMarketStatus}
+          simulationMode={simulationMode}
+          setSimulationMode={setSimulationMode}
         />
       )}
     </div>

@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useCurrency, getStockNativeCurrency } from "../utils/currency";
+import { useSettingsStore } from "../store/settingsStore";
 
 /**
  * Format date string into human friendly format
@@ -45,8 +46,8 @@ const ForecastTooltip = ({ active, payload }) => {
     const isForecast = data.type === "forecast";
 
     return (
-      <div className="bg-brand-surface/95 backdrop-blur-md border border-white/10 rounded-2xl p-3.5 shadow-2xl text-xs space-y-2 min-w-[210px] pointer-events-none">
-        <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+      <div className="bg-brand-surface/95 backdrop-blur-md border border-brand-border rounded-2xl p-3.5 shadow-2xl text-xs space-y-2 min-w-[210px] pointer-events-none text-brand-textPrimary">
+        <div className="flex items-center justify-between border-b border-brand-border pb-1.5">
           <span className="text-brand-textMuted text-[11px] font-medium">
             {formatDate(data.date)}
           </span>
@@ -54,7 +55,7 @@ const ForecastTooltip = ({ active, payload }) => {
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
               isForecast
                 ? "bg-cyan-500/10 text-brand-cyan border border-brand-cyan/20"
-                : "bg-white/10 text-white border border-white/10"
+                : "bg-black/5 dark:bg-white/10 text-brand-textPrimary border border-brand-border"
             }`}
           >
             {isForecast ? "7D Forecast" : "Historical Actual"}
@@ -68,7 +69,7 @@ const ForecastTooltip = ({ active, payload }) => {
               <span className="w-2 h-2 rounded-full bg-slate-400" />
               Actual Close:
             </span>
-            <span className="font-bold text-white text-xs">
+            <span className="font-bold text-brand-textPrimary text-xs">
               {formatRaw(data.actual)}
             </span>
           </div>
@@ -102,9 +103,9 @@ const ForecastTooltip = ({ active, payload }) => {
 
         {/* Divergence between models */}
         {isForecast && data.lstm && data.baseline && (
-          <div className="pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px]">
+          <div className="pt-1.5 border-t border-brand-border flex items-center justify-between text-[10px]">
             <span className="text-brand-textMuted">Model Divergence:</span>
-            <span className="font-semibold text-white">
+            <span className="font-semibold text-brand-textPrimary">
               {formatRaw(Math.abs(data.lstm - data.baseline))} (
               {((Math.abs(data.lstm - data.baseline) / data.baseline) * 100).toFixed(2)}%)
             </span>
@@ -126,14 +127,22 @@ export const ForecastChart = ({
   onRetry = null,
 }) => {
   const { convert, symbol } = useCurrency();
+  const { theme } = useSettingsStore();
+  const isDark = theme === "dark";
+  const lstmColor = isDark ? "#00E676" : "#00A854";
+  const baselineColor = isDark ? "#0EA5E9" : "#0284C7";
+  const bgRingColor = isDark ? "#0B0E14" : "#FFFFFF";
   const nativeCurrency = getStockNativeCurrency(ticker);
   const conversionRate = convert(1, nativeCurrency);
 
   // Construct timeline joining historical points and 7-day predicted horizon
   const { chartData, minPrice, maxPrice, anchorDate, lstmTarget, driftPct } =
     useMemo(() => {
-      // 1. Take up to the last 8 trading days of history
-      const recentHistory = (historyData || []).slice(-8);
+      // 1. Filter historyData to only strictly valid numeric closes and take last 8 trading days
+      const validHistory = (historyData || []).filter(
+        (h) => h && h.close != null && !isNaN(Number(h.close)) && Number(h.close) > 0
+      );
+      const recentHistory = validHistory.slice(-8);
 
       if (recentHistory.length === 0 && (!predictionsData || predictionsData.length === 0)) {
         return {
@@ -147,8 +156,8 @@ export const ForecastChart = ({
         };
       }
 
-      const lastHist = recentHistory[recentHistory.length - 1];
-      const anchorPrice = lastHist ? lastHist.close : 0;
+      const lastHist = recentHistory.length > 0 ? recentHistory[recentHistory.length - 1] : null;
+      const anchorPrice = lastHist ? Number(lastHist.close) : 0;
       const anchorDt = lastHist ? lastHist.date : null;
 
       // Group predictions by target_date
@@ -165,10 +174,12 @@ export const ForecastChart = ({
         }
       });
 
-      // Get unique sorted future target dates
+      // Get unique sorted future target dates strictly after anchor date
       const futureDates = Array.from(
         new Set([...Object.keys(lstmMap), ...Object.keys(baselineMap)])
-      ).sort((a, b) => new Date(a) - new Date(b));
+      )
+        .filter((dStr) => !anchorDt || new Date(dStr) > new Date(anchorDt))
+        .sort((a, b) => new Date(a) - new Date(b));
 
       // Construct points with currency conversion applied
       const points = [];
@@ -176,7 +187,10 @@ export const ForecastChart = ({
       // Historical points
       recentHistory.forEach((h, index) => {
         const isAnchor = index === recentHistory.length - 1;
-        const cPrice = h.close != null ? Number((h.close * conversionRate).toFixed(2)) : null;
+        const cPrice =
+          h.close != null && !isNaN(Number(h.close))
+            ? Number((Number(h.close) * conversionRate).toFixed(2))
+            : null;
         points.push({
           date: h.date,
           actual: cPrice,
@@ -194,20 +208,29 @@ export const ForecastChart = ({
         points.push({
           date: dStr,
           actual: null,
-          lstm: rawLstm != null ? Number((rawLstm * conversionRate).toFixed(2)) : null,
-          baseline: rawBase != null ? Number((rawBase * conversionRate).toFixed(2)) : null,
+          lstm: rawLstm != null && !isNaN(Number(rawLstm)) ? Number((Number(rawLstm) * conversionRate).toFixed(2)) : null,
+          baseline: rawBase != null && !isNaN(Number(rawBase)) ? Number((Number(rawBase) * conversionRate).toFixed(2)) : null,
           type: "forecast",
         });
       });
 
-      // Compute Y-Axis bounds
+      // Compute adaptive Y-Axis bounds
       const allPrices = points
         .flatMap((p) => [p.actual, p.lstm, p.baseline])
         .filter((v) => v !== null && !isNaN(v));
 
       const min = allPrices.length > 0 ? Math.min(...allPrices) : 100;
       const max = allPrices.length > 0 ? Math.max(...allPrices) : 200;
-      const padding = (max - min) * 0.08 || 2;
+      const range = max - min;
+      const padding = range > 0 ? range * 0.12 : (min * 0.05 || 1);
+
+      const isLowPrice = max < 25;
+      const minBound = isLowPrice
+        ? Math.max(0, Number((min - padding).toFixed(2)))
+        : Math.max(0, Math.floor(min - padding));
+      const maxBound = isLowPrice
+        ? Number((max + padding).toFixed(2))
+        : Math.ceil(max + padding);
 
       const lastLstm = futureDates.length > 0 ? lstmMap[futureDates[futureDates.length - 1]] : null;
       const lastBase = futureDates.length > 0 ? baselineMap[futureDates[futureDates.length - 1]] : null;
@@ -216,14 +239,15 @@ export const ForecastChart = ({
 
       return {
         chartData: points,
-        minPrice: Math.max(0, Math.floor(min - padding)),
-        maxPrice: Math.ceil(max + padding),
+        minPrice: minBound,
+        maxPrice: maxBound,
         anchorDate: anchorDt,
         lstmTarget: convertedTarget,
         baselineTarget: lastBase != null ? Number((lastBase * conversionRate).toFixed(2)) : null,
         driftPct: drift,
       };
     }, [historyData, predictionsData, conversionRate]);
+
 
   if (isLoading) {
     return (
@@ -325,7 +349,7 @@ export const ForecastChart = ({
             <CartesianGrid
               strokeDasharray="3 3"
               vertical={false}
-              stroke="rgba(255, 255, 255, 0.05)"
+              stroke={isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(15, 23, 42, 0.06)"}
             />
 
             <XAxis
@@ -334,7 +358,7 @@ export const ForecastChart = ({
               stroke="#64748B"
               fontSize={10}
               tickLine={false}
-              axisLine={{ stroke: "rgba(255, 255, 255, 0.1)" }}
+              axisLine={{ stroke: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(15, 23, 42, 0.1)" }}
               minTickGap={20}
             />
 
@@ -354,11 +378,11 @@ export const ForecastChart = ({
             {anchorDate && (
               <ReferenceLine
                 x={anchorDate}
-                stroke="rgba(14, 165, 233, 0.35)"
+                stroke={isDark ? "rgba(14, 165, 233, 0.35)" : "rgba(2, 132, 199, 0.35)"}
                 strokeDasharray="3 3"
                 label={{
                   value: "Today (Horizon Start)",
-                  fill: "#0EA5E9",
+                  fill: isDark ? "#0EA5E9" : "#0284C7",
                   fontSize: 9,
                   position: "insideTopLeft",
                 }}
@@ -372,8 +396,8 @@ export const ForecastChart = ({
               stroke="#94A3B8"
               strokeWidth={2.5}
               dot={{ r: 2.5, fill: "#94A3B8" }}
-              activeDot={{ r: 5, fill: "#FFFFFF", stroke: "#0A0E17", strokeWidth: 2 }}
-              connectNulls={false}
+              activeDot={{ r: 5, fill: isDark ? "#FFFFFF" : "#0F172A", stroke: bgRingColor, strokeWidth: 2 }}
+              connectNulls={true}
               isAnimationActive={false}
             />
 
@@ -381,15 +405,15 @@ export const ForecastChart = ({
             <Line
               type="monotone"
               dataKey="lstm"
-              stroke="#00F59B"
+              stroke={lstmColor}
               strokeWidth={activeModel === "lstm" ? 3.5 : 2.5}
               strokeDasharray={activeModel === "linear" ? "2 2" : undefined}
               strokeOpacity={activeModel === "linear" ? 0.3 : 1}
-              dot={{ r: 3, fill: "#00F59B" }}
+              dot={{ r: 3, fill: lstmColor }}
               activeDot={{
                 r: 6,
-                fill: "#00F59B",
-                stroke: "#0A0E17",
+                fill: lstmColor,
+                stroke: bgRingColor,
                 strokeWidth: 2,
               }}
               connectNulls={true}
@@ -400,15 +424,15 @@ export const ForecastChart = ({
             <Line
               type="monotone"
               dataKey="baseline"
-              stroke="#0EA5E9"
+              stroke={baselineColor}
               strokeWidth={activeModel === "linear" ? 3.5 : 2}
               strokeDasharray="4 4"
               strokeOpacity={activeModel === "lstm" ? 0.3 : 1}
-              dot={{ r: 2.5, fill: "#0EA5E9" }}
+              dot={{ r: 2.5, fill: baselineColor }}
               activeDot={{
                 r: 5,
-                fill: "#0EA5E9",
-                stroke: "#0A0E17",
+                fill: baselineColor,
+                stroke: bgRingColor,
                 strokeWidth: 2,
               }}
               connectNulls={true}
@@ -419,7 +443,7 @@ export const ForecastChart = ({
       </div>
 
       {/* Footer Horizon Breakdown */}
-      <div className="flex items-center justify-between text-[11px] text-brand-textMuted pt-1 border-t border-white/5">
+      <div className="flex items-center justify-between text-[11px] text-brand-textMuted pt-1 border-t border-brand-border">
         <span className="flex items-center gap-1.5">
           <Brain className="w-3.5 h-3.5 text-brand-emerald" />
           <span>Walk-Forward Multivariant Sequence</span>

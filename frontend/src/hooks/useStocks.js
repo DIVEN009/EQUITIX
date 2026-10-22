@@ -5,6 +5,7 @@ import {
   searchStocksApi,
   fetchStockPredictionsApi,
   fetchStockBenchmarksApi,
+  fetchMarketStatusApi,
 } from "../api/stocks";
 
 /**
@@ -85,6 +86,24 @@ export const useStockBenchmarks = (ticker) => {
     queryFn: () => fetchStockBenchmarksApi(normalizedTicker),
     enabled: Boolean(normalizedTicker),
     staleTime: 1000 * 60 * 30, // 30 minutes cache
+    retry: 1,
+  });
+};
+
+/**
+ * Hook to retrieve real-time market open/closed status and schedule.
+ * @param {string} [ticker]
+ * @param {string} [exchange]
+ */
+export const useMarketStatus = (ticker, exchange) => {
+  const normalizedTicker = ticker?.toUpperCase()?.trim();
+  const normalizedExchange = exchange?.toUpperCase()?.trim();
+
+  return useQuery({
+    queryKey: ["marketStatus", normalizedTicker, normalizedExchange],
+    queryFn: () => fetchMarketStatusApi(normalizedTicker, normalizedExchange),
+    staleTime: 1000 * 20, // 20s fresh
+    refetchInterval: 1000 * 60, // Auto recheck every minute
     retry: 1,
   });
 };

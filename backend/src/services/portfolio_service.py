@@ -1,3 +1,4 @@
+import math
 from typing import List
 from uuid import UUID
 from fastapi import HTTPException, status
@@ -90,12 +91,32 @@ class PortfolioService:
 
             # Determine latest price from DailyPrice or fallback to average price
             latest_price_rec = self.stock_repo.get_latest_daily_price(db, ticker)
-            current_price = float(latest_price_rec.close) if latest_price_rec else avg_price
+            raw_close = None
+            if latest_price_rec and latest_price_rec.close is not None:
+                try:
+                    c = float(latest_price_rec.close)
+                    if not math.isnan(c) and c > 0:
+                        raw_close = c
+                except (ValueError, TypeError):
+                    pass
+
+            if raw_close is not None:
+                current_price = raw_close
+            elif avg_price > 0 and not math.isnan(avg_price):
+                current_price = avg_price
+            else:
+                current_price = 1.0
 
             invested_val = round(shares * avg_price, 2)
             current_val = round(shares * current_price, 2)
             unrealized_pnl = round(current_val - invested_val, 2)
-            unrealized_pnl_pct = round((unrealized_pnl / invested_val) * 100, 2) if invested_val > 0 else 0.0
+            unrealized_pnl_pct = (
+                round((unrealized_pnl / invested_val) * 100, 2)
+                if invested_val > 0 and not math.isnan(unrealized_pnl)
+                else 0.0
+            )
+            if math.isnan(unrealized_pnl_pct):
+                unrealized_pnl_pct = 0.0
 
             total_holdings_value += current_val
             total_invested_value += invested_val
@@ -122,9 +143,11 @@ class PortfolioService:
         total_unrealized_pnl = round(total_holdings_value - total_invested_value, 2)
         total_pnl_percent = (
             round((total_unrealized_pnl / total_invested_value) * 100, 2)
-            if total_invested_value > 0
+            if total_invested_value > 0 and not math.isnan(total_unrealized_pnl)
             else 0.0
         )
+        if math.isnan(total_pnl_percent):
+            total_pnl_percent = 0.0
 
         return PortfolioSummaryResponse(
             id=portfolio.id,
