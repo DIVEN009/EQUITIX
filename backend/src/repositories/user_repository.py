@@ -10,6 +10,11 @@ class UserRepository:
     """
 
     def get_by_id(self, db: Session, user_id: Union[UUID, str]) -> Optional[User]:
+        if isinstance(user_id, str):
+            try:
+                user_id = UUID(user_id)
+            except (ValueError, TypeError):
+                return None
         return db.query(User).filter(User.id == user_id).first()
 
     def get_by_email(self, db: Session, email: str) -> Optional[User]:

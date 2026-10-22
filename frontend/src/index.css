@@ -1,106 +1,276 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════
+   EQUITIX — Design System CSS Variables
+   Light Theme (Default) + Dark Theme
+   ═══════════════════════════════════════════════════ */
+
 :root {
+  /* -- Light Professional Theme -- */
+  --brand-bg: 248 250 252;           /* #F8FAFC - Clean slate white */
+  --brand-surface: 255 255 255;       /* #FFFFFF - Pure white cards */
+  --brand-card: 241 245 249;          /* #F1F5F9 - Subtle card fill */
+  --brand-card-hover: 226 232 240;    /* #E2E8F0 - Hovered card */
+  --brand-border: rgba(15, 23, 42, 0.08);
+  --brand-border-hover: rgba(15, 23, 42, 0.16);
+  --brand-emerald: 0 168 84;          /* #00A854 - Professional green */
+  --brand-emerald-dark: 0 135 68;     /* #008744 */
+  --brand-cyan: 6 182 212;            /* #06B6D4 */
+  --brand-red: 229 57 53;             /* #E53935 */
+  --brand-text-primary: 15 23 42;     /* #0F172A - Deep slate */
+  --brand-text-secondary: 71 85 105;  /* #475569 */
+  --brand-text-muted: 148 163 184;    /* #94A3B8 */
+  --shadow-emerald-glow: 0 0 20px rgba(0, 168, 84, 0.15), 0 0 60px rgba(0, 168, 84, 0.06);
+  --shadow-card-glass: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.06);
+  color-scheme: light;
+}
+
+.dark {
+  /* -- Midnight Dark Theme (User's Custom Palette) -- */
+  --brand-bg: 11 14 20;              /* #0B0E14 - Deep Midnight Black */
+  --brand-surface: 22 26 34;          /* #161A22 - Card/Widget Background */
+  --brand-card: 28 32 42;             /* #1C202A */
+  --brand-card-hover: 35 40 52;       /* #232834 */
+  --brand-border: rgba(234, 236, 239, 0.08);
+  --brand-border-hover: rgba(234, 236, 239, 0.16);
+  --brand-emerald: 0 230 118;         /* #00E676 - Neon Matrix Green */
+  --brand-emerald-dark: 0 200 83;     /* #00C853 */
+  --brand-cyan: 0 229 255;            /* #00E5FF */
+  --brand-red: 255 61 0;              /* #FF3D00 - Electric Coral Red */
+  --brand-text-primary: 234 236 239;  /* #EAECEF - High-contrast Off-White */
+  --brand-text-secondary: 160 170 185; /* #A0AAB9 */
+  --brand-text-muted: 100 110 130;    /* #646E82 */
+  --shadow-emerald-glow: 0 0 25px rgba(0, 230, 118, 0.2), 0 0 80px rgba(0, 230, 118, 0.08);
+  --shadow-card-glass: 0 2px 8px rgba(0, 0, 0, 0.3), 0 8px 32px rgba(0, 0, 0, 0.2);
   color-scheme: dark;
 }
 
-body {
+
+/* ═══════════════════════════════════════════════════
+   Global Base Styles
+   ═══════════════════════════════════════════════════ */
+
+* {
   margin: 0;
   padding: 0;
-  background-color: #0A0E17;
-  color: #F8FAFC;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
-/* Custom Scrollbars */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: rgb(var(--brand-bg));
+  color: rgb(var(--brand-text-primary));
+  transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+}
+
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #0A0E17;
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  background: rgba(var(--brand-text-muted), 0.3);
+  border-radius: 100px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 245, 155, 0.4);
+  background: rgba(var(--brand-text-muted), 0.5);
 }
 
-/* Glassmorphism helpers */
-.glass-panel {
-  background: rgba(22, 29, 43, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.glass-panel-hover {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.glass-panel-hover:hover {
-  border-color: rgba(0, 245, 155, 0.3);
-  transform: translateY(-1px);
-}
-
-/* Emerald glow button */
-.btn-emerald-glow {
-  background: linear-gradient(135deg, #00F59B 0%, #00C87E 100%);
-  color: #0A0E17;
-  font-weight: 600;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 14px 0 rgba(0, 245, 155, 0.25);
-}
-
-.btn-emerald-glow:hover {
-  box-shadow: 0 6px 20px rgba(0, 245, 155, 0.4);
-  transform: translateY(-1px);
-}
-
-.btn-emerald-glow:active {
-  transform: translateY(0);
-}
-
-/* Hide scrollbar for clean horizontal pill trays */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* Subtle glow pulse */
-@keyframes emeraldPulse {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(0, 245, 155, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 25px rgba(0, 245, 155, 0.4);
-  }
-}
-
-.glow-emerald-pulse {
-  animation: emeraldPulse 3s ease-in-out infinite;
-}
-
-/* Institutional Quant Grid Background */
+/* Quant Grid Background pattern */
 .quant-grid-bg {
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-  background-size: 32px 32px;
+    linear-gradient(to right, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
 }
 
+.dark .quant-grid-bg {
+  background-image: 
+    linear-gradient(to right, rgba(234, 236, 239, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(234, 236, 239, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* ═══════════════════════════════════════════════════
+   Component Utility Classes
+   ═══════════════════════════════════════════════════ */
+
+@layer components {
+  /* Glass Panel — foundation card style */
+  .glass-panel {
+    background: rgb(var(--brand-surface));
+    border: 1px solid var(--brand-border);
+    transition: all 0.3s ease;
+  }
+  .glass-panel-hover:hover {
+    border-color: var(--brand-border-hover);
+    box-shadow: var(--shadow-card-glass);
+    transform: translateY(-1px);
+  }
+
+  /* Primary CTA Button with emerald glow */
+  .btn-primary {
+    background: rgb(var(--brand-emerald));
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-primary:hover {
+    box-shadow: var(--shadow-emerald-glow);
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+  }
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  /* Secondary / Outline Button */
+  .btn-secondary {
+    background: rgb(var(--brand-surface));
+    color: rgb(var(--brand-text-primary));
+    font-weight: 600;
+    border: 1px solid var(--brand-border);
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .btn-secondary:hover {
+    border-color: rgb(var(--brand-emerald));
+    color: rgb(var(--brand-emerald));
+    box-shadow: var(--shadow-card-glass);
+  }
+
+  /* Ghost Button */
+  .btn-ghost {
+    background: transparent;
+    color: rgb(var(--brand-text-secondary));
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-ghost:hover {
+    color: rgb(var(--brand-emerald));
+  }
+
+  /* Input Fields */
+  .input-field {
+    width: 100%;
+    background: rgb(var(--brand-card));
+    border: 1px solid var(--brand-border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: rgb(var(--brand-text-primary));
+    outline: none;
+    transition: all 0.3s ease;
+  }
+  .input-field::placeholder {
+    color: rgb(var(--brand-text-muted));
+  }
+  .input-field:focus {
+    border-color: rgb(var(--brand-emerald));
+    box-shadow: 0 0 0 3px rgba(var(--brand-emerald), 0.1);
+  }
+
+  /* Stat Card */
+  .stat-card {
+    background: rgb(var(--brand-surface));
+    border: 1px solid var(--brand-border);
+    border-radius: 20px;
+    padding: 20px;
+    transition: all 0.3s ease;
+  }
+  .stat-card:hover {
+    border-color: var(--brand-border-hover);
+    box-shadow: var(--shadow-card-glass);
+    transform: translateY(-2px);
+  }
+
+  /* Badge */
+  .badge-emerald {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(var(--brand-emerald), 0.1);
+    color: rgb(var(--brand-emerald));
+    border: 1px solid rgba(var(--brand-emerald), 0.2);
+  }
+
+  .badge-red {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(var(--brand-red), 0.1);
+    color: rgb(var(--brand-red));
+    border: 1px solid rgba(var(--brand-red), 0.2);
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════
+   Animations & Reduced Motion
+   ═══════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Stagger entrance animation helper */
+.stagger-enter > * {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: staggerIn 0.5s ease-out forwards;
+}
+.stagger-enter > *:nth-child(1) { animation-delay: 0s; }
+.stagger-enter > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger-enter > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger-enter > *:nth-child(4) { animation-delay: 0.18s; }
+.stagger-enter > *:nth-child(5) { animation-delay: 0.24s; }
+.stagger-enter > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger-enter > *:nth-child(7) { animation-delay: 0.36s; }
+.stagger-enter > *:nth-child(8) { animation-delay: 0.42s; }
+
+@keyframes staggerIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pulse dot animation */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.5); }
+}
+.animate-pulse-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+}

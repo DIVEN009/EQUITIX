@@ -262,12 +262,12 @@ export const TransactionModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-md glass-panel rounded-3xl p-6 shadow-cardGlass relative border border-white/10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/80 backdrop-blur-md animate-fade-in">
+      <div className="w-full max-w-md glass-panel rounded-3xl p-6 shadow-cardGlass relative border border-brand-border">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <div className="flex items-center justify-between pb-4 border-b border-brand-border">
           <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <h3 className="text-base font-bold text-brand-textPrimary flex items-center gap-2">
               <span>Execute Simulated Order</span>
               {action === "SELL" ? (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/15 text-brand-red font-mono font-bold border border-red-500/30">
@@ -283,14 +283,14 @@ export const TransactionModal = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-brand-textMuted hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl text-brand-textMuted hover:text-brand-textPrimary hover:bg-brand-cardHover transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Dynamic Context Banner: Cash & Position */}
-        <div className="my-4 p-3 rounded-2xl bg-brand-surface border border-white/5 space-y-2">
+        <div className="my-4 p-3 rounded-2xl bg-brand-surface border border-brand-border space-y-2">
           <div className="flex items-center justify-between text-xs">
             <span className="text-brand-textSecondary flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-brand-emerald animate-pulse" />
@@ -300,13 +300,13 @@ export const TransactionModal = ({
           </div>
 
           {action === "SELL" ? (
-            <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+            <div className="pt-2 border-t border-brand-border flex items-center justify-between text-xs">
               <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-brand-red" />
                 <span className="text-brand-textSecondary">
-                  Position in <span className="font-mono text-white font-bold">{ticker || "Stock"}</span>:
+                  Position in <span className="font-mono text-brand-textPrimary font-bold">{ticker || "Stock"}</span>:
                 </span>
-                <span className="font-mono font-bold text-white">
+                <span className="font-mono font-bold text-brand-textPrimary">
                   {ownedShares} {ownedShares === 1 ? "Share" : "Shares"}
                 </span>
               </div>
@@ -314,17 +314,17 @@ export const TransactionModal = ({
                 <button
                   type="button"
                   onClick={handleSetMax}
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-red-500/15 hover:bg-brand-red text-red-400 hover:text-white border border-red-500/30 transition-all cursor-pointer"
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-red-500/15 hover:bg-brand-red text-red-500 dark:text-red-400 hover:text-white border border-red-500/30 transition-all cursor-pointer"
                   title="Choose maximum owned shares"
                 >
                   Max: {ownedShares}
                 </button>
               ) : (
-                <span className="text-[10px] text-amber-400 font-semibold">0 Owned</span>
+                <span className="text-[10px] text-amber-500 font-semibold">0 Owned</span>
               )}
             </div>
           ) : (
-            <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+            <div className="pt-2 border-t border-brand-border flex items-center justify-between text-xs">
               <span className="text-brand-textSecondary text-[11px]">
                 Max Purchasing Power:
               </span>
@@ -332,13 +332,13 @@ export const TransactionModal = ({
                 <button
                   type="button"
                   onClick={handleSetMax}
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 hover:bg-brand-emerald text-brand-emerald hover:text-black border border-brand-emerald/30 transition-all cursor-pointer font-mono"
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 hover:bg-brand-emerald text-brand-emerald hover:text-white dark:hover:text-brand-bg border border-brand-emerald/30 transition-all cursor-pointer font-mono"
                   title="Choose maximum affordable shares"
                 >
                   Max: {maxAffordableBuy} Shares
                 </button>
               ) : (
-                <span className="text-[10px] text-amber-400 font-semibold font-mono">0 Shares</span>
+                <span className="text-[10px] text-amber-500 font-semibold font-mono">0 Shares</span>
               )}
             </div>
           )}
@@ -346,7 +346,7 @@ export const TransactionModal = ({
 
         {/* Error message */}
         {(localError || error) && (
-          <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-2.5 text-red-400 text-xs">
+          <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-2.5 text-red-500 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{localError || error}</span>
           </div>
@@ -354,14 +354,14 @@ export const TransactionModal = ({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Action switcher: BUY vs SELL */}
-          <div className="grid grid-cols-2 gap-2 bg-brand-surface p-1 rounded-xl border border-white/5">
+          <div className="grid grid-cols-2 gap-2 bg-brand-surface p-1 rounded-xl border border-brand-border">
             <button
               type="button"
               onClick={() => handleActionChange("BUY")}
               className={`py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 action === "BUY"
-                  ? "bg-brand-emerald text-brand-bg shadow-sm"
-                  : "text-brand-textMuted hover:text-white"
+                  ? "bg-brand-emerald text-white dark:text-brand-bg shadow-sm"
+                  : "text-brand-textMuted hover:text-brand-textPrimary"
               }`}
             >
               <ArrowDownRight className="w-4 h-4" />
@@ -373,7 +373,7 @@ export const TransactionModal = ({
               className={`py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 action === "SELL"
                   ? "bg-brand-red text-white shadow-sm"
-                  : "text-brand-textMuted hover:text-white"
+                  : "text-brand-textMuted hover:text-brand-textPrimary"
               }`}
             >
               <ArrowUpRight className="w-4 h-4" />
@@ -401,7 +401,7 @@ export const TransactionModal = ({
                 value={ticker}
                 onChange={(e) => setTicker(e.target.value.toUpperCase())}
                 placeholder="AAPL"
-                className="w-full bg-brand-surface border border-white/10 rounded-xl px-3.5 py-2 text-sm text-white font-mono uppercase focus:outline-none focus:border-brand-emerald"
+                className="w-full bg-brand-surface border border-brand-border rounded-xl px-3.5 py-2 text-sm text-brand-textPrimary font-mono uppercase focus:outline-none focus:border-brand-emerald"
               />
             </div>
 
@@ -417,8 +417,8 @@ export const TransactionModal = ({
                       onClick={() => handleSelectTicker(h.ticker)}
                       className={`px-2.5 py-1 text-xs rounded-xl border transition-all cursor-pointer font-mono ${
                         isSelected
-                          ? "bg-red-500/20 border-brand-red text-white font-bold shadow-sm"
-                          : "bg-brand-surface border-white/10 text-brand-textSecondary hover:text-white hover:border-white/20"
+                          ? "bg-red-500/20 border-brand-red text-brand-textPrimary font-bold shadow-sm"
+                          : "bg-brand-surface border-brand-border text-brand-textSecondary hover:text-brand-textPrimary hover:border-brand-textMuted/40"
                       }`}
                     >
                       {h.ticker} <span className="text-[10px] opacity-75">({h.shares})</span>
@@ -436,7 +436,7 @@ export const TransactionModal = ({
                       className={`px-2.5 py-1 text-xs rounded-xl border transition-all cursor-pointer font-mono ${
                         isSelected
                           ? "bg-brand-emerald/20 border-brand-emerald text-brand-emerald font-bold"
-                          : "bg-brand-surface border-white/10 text-brand-textSecondary hover:text-white hover:border-white/20"
+                          : "bg-brand-surface border-brand-border text-brand-textSecondary hover:text-brand-textPrimary hover:border-brand-textMuted/40"
                       }`}
                     >
                       {t}
@@ -480,10 +480,10 @@ export const TransactionModal = ({
                     setLocalError("");
                   }}
                   placeholder="0"
-                  className={`w-full bg-brand-surface border rounded-xl pl-3.5 pr-14 py-2 text-sm text-white font-mono focus:outline-none transition-colors ${
+                  className={`w-full bg-brand-surface border rounded-xl pl-3.5 pr-14 py-2 text-sm text-brand-textPrimary font-mono focus:outline-none transition-colors ${
                     isOverOwnedShares || isInsufficientCash
                       ? "border-red-500/80 focus:border-red-500"
-                      : "border-white/10 focus:border-brand-emerald"
+                      : "border-brand-border focus:border-brand-emerald"
                   }`}
                 />
                 <button
@@ -492,8 +492,8 @@ export const TransactionModal = ({
                   disabled={maxSelectableShares <= 0}
                   className={`absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                     action === "BUY"
-                      ? "bg-brand-emerald/15 hover:bg-brand-emerald text-brand-emerald hover:text-black border border-brand-emerald/30"
-                      : "bg-red-500/15 hover:bg-brand-red text-red-400 hover:text-white border border-red-500/30"
+                      ? "bg-brand-emerald/15 hover:bg-brand-emerald text-brand-emerald hover:text-white dark:hover:text-brand-bg border border-brand-emerald/30"
+                      : "bg-red-500/15 hover:bg-brand-red text-red-500 dark:text-red-400 hover:text-white border border-red-500/30"
                   } disabled:opacity-30 disabled:cursor-not-allowed`}
                   title="Choose maximum of what I have"
                 >
@@ -513,7 +513,7 @@ export const TransactionModal = ({
                     Custom / Historical
                   </span>
                 ) : !marketStatus.isOpen ? (
-                  <span className="text-[10px] text-amber-300 font-semibold flex items-center gap-1 font-mono">
+                  <span className="text-[10px] text-amber-500 dark:text-amber-300 font-semibold flex items-center gap-1 font-mono">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                     Last Close (Market Closed)
                   </span>
@@ -541,7 +541,7 @@ export const TransactionModal = ({
                     setLocalError("");
                   }}
                   placeholder="0.00"
-                  className="w-full bg-brand-surface border border-white/10 rounded-xl pl-8 pr-24 py-2 text-sm text-white font-mono font-bold focus:outline-none focus:border-brand-emerald transition-colors"
+                  className="w-full bg-brand-surface border border-brand-border rounded-xl pl-8 pr-24 py-2 text-sm text-brand-textPrimary font-mono font-bold focus:outline-none focus:border-brand-emerald transition-colors"
                 />
                 {liveMarketPrice && (
                   <button
@@ -555,9 +555,9 @@ export const TransactionModal = ({
                     className={`absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
                       !isPriceManuallyEdited
                         ? !marketStatus.isOpen
-                          ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                          ? "bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30"
                           : "bg-emerald-500/15 text-brand-emerald border border-brand-emerald/30"
-                        : "bg-white/10 hover:bg-white/20 text-brand-textSecondary hover:text-white border border-white/10"
+                        : "bg-brand-cardHover hover:bg-brand-card text-brand-textSecondary hover:text-brand-textPrimary border border-brand-border"
                     }`}
                   >
                     {!isPriceManuallyEdited ? (!marketStatus.isOpen ? "● CLOSE" : "● LIVE") : "SNAP CLOSE"}
@@ -589,8 +589,8 @@ export const TransactionModal = ({
               </div>
 
               {!marketStatus.isOpen && !isPriceManuallyEdited && (
-                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200 mt-2 flex items-center gap-2">
-                  <Moon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-200 mt-2 flex items-center gap-2">
+                  <Moon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                   <span>
                     Market is currently closed ({marketStatus.session}). Order will execute as a paper trade at the official closing price.
                   </span>
@@ -600,11 +600,11 @@ export const TransactionModal = ({
           </div>
 
           {/* Quick Allocation Fill Percentage Bar: 25%, 50%, 75%, MAX */}
-          <div className="flex items-center justify-between p-2 rounded-xl bg-brand-surface/40 border border-white/5 text-xs">
+          <div className="flex items-center justify-between p-2 rounded-xl bg-brand-surface border border-brand-border text-xs">
             <div className="flex items-center gap-1.5 text-[11px] text-brand-textMuted">
               <Sparkles className="w-3.5 h-3.5 text-brand-emerald/80" />
               <span className="font-medium">Quick Fill:</span>
-              <span className="font-mono font-semibold text-slate-300">
+              <span className="font-mono font-semibold text-brand-textPrimary">
                 {action === "SELL" ? `${ownedShares} owned` : `${maxAffordableBuy} max`}
               </span>
             </div>
@@ -633,9 +633,9 @@ export const TransactionModal = ({
                     className={`px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider transition-all cursor-pointer font-mono ${
                       isSelected
                         ? action === "BUY"
-                          ? "bg-brand-emerald text-brand-bg font-black shadow-sm"
+                          ? "bg-brand-emerald text-white dark:text-brand-bg font-black shadow-sm"
                           : "bg-brand-red text-white font-black shadow-sm"
-                        : "bg-brand-surface border border-white/10 text-brand-textSecondary hover:text-white hover:border-white/20"
+                        : "bg-brand-surface border border-brand-border text-brand-textSecondary hover:text-brand-textPrimary hover:border-brand-textMuted/40"
                     } disabled:opacity-30 disabled:cursor-not-allowed`}
                     title={`Fill ${item.label} of available`}
                   >
@@ -648,7 +648,7 @@ export const TransactionModal = ({
 
           {/* Inline Validation Warnings */}
           {isInsufficientCash && (
-            <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+            <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-xs flex items-center gap-2">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               <span>
                 Order exceeds cash balance by {formatPortfolio(totalValue - cashBalance)}
@@ -657,7 +657,7 @@ export const TransactionModal = ({
           )}
 
           {isOverOwnedShares && (
-            <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+            <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 text-xs flex items-center gap-2">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               <span>
                 Cannot sell {sharesNum} shares: You only own {ownedShares} shares.
@@ -666,23 +666,23 @@ export const TransactionModal = ({
           )}
 
           {isZeroOwnedShares && (
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs flex items-center gap-2">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400 text-xs flex items-center gap-2">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               <span>You have 0 shares of {ticker} in this portfolio to exit.</span>
             </div>
           )}
 
           {/* Estimated Total Calculation & Cash Impact */}
-          <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 space-y-1.5 text-xs">
+          <div className="p-3.5 rounded-2xl bg-brand-surface border border-brand-border space-y-1.5 text-xs">
             <div className="flex items-center justify-between">
               <span className="text-brand-textMuted font-medium">Estimated Order Total</span>
-              <span className="text-base font-bold text-white font-mono">
+              <span className="text-base font-bold text-brand-textPrimary font-mono">
                 {formatPortfolio(totalValue)}
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-brand-textMuted font-mono pt-1 border-t border-white/5">
+            <div className="flex items-center justify-between text-[11px] text-brand-textMuted font-mono pt-1 border-t border-brand-border">
               <span>{action === "BUY" ? "Remaining Cash:" : "Proceeds to Cash:"}</span>
-              <span className={action === "BUY" && isInsufficientCash ? "text-red-400 font-bold" : "text-slate-300 font-medium"}>
+              <span className={action === "BUY" && isInsufficientCash ? "text-red-500 dark:text-red-400 font-bold" : "text-brand-textSecondary font-medium"}>
                 {action === "BUY"
                   ? formatPortfolio(Math.max(0, cashBalance - totalValue))
                   : formatPortfolio(cashBalance + totalValue)}
@@ -701,7 +701,7 @@ export const TransactionModal = ({
             }
             className={`w-full py-3.5 rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 mt-4 cursor-pointer transition-all ${
               action === "BUY"
-                ? "btn-emerald-glow"
+                ? "btn-primary"
                 : "bg-brand-red text-white hover:bg-red-600 shadow-md hover:shadow-red-500/20"
             } disabled:opacity-40 disabled:cursor-not-allowed`}
           >

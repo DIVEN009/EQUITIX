@@ -9,7 +9,12 @@ class PortfolioRepository:
     Repository layer handling database operations for Portfolios and Holdings.
     """
 
-    def get_user_portfolios(self, db: Session, user_id: UUID) -> List[Portfolio]:
+    def get_user_portfolios(self, db: Session, user_id: Union[UUID, str]) -> List[Portfolio]:
+        if isinstance(user_id, str):
+            try:
+                user_id = UUID(user_id)
+            except (ValueError, TypeError):
+                return []
         return (
             db.query(Portfolio)
             .filter(Portfolio.user_id == user_id)
@@ -20,9 +25,19 @@ class PortfolioRepository:
     def get_portfolio_by_id(
         self,
         db: Session,
-        portfolio_id: UUID,
-        user_id: Optional[UUID] = None,
+        portfolio_id: Union[UUID, str],
+        user_id: Optional[Union[UUID, str]] = None,
     ) -> Optional[Portfolio]:
+        if isinstance(portfolio_id, str):
+            try:
+                portfolio_id = UUID(portfolio_id)
+            except (ValueError, TypeError):
+                return None
+        if isinstance(user_id, str):
+            try:
+                user_id = UUID(user_id)
+            except (ValueError, TypeError):
+                return None
         query = (
             db.query(Portfolio)
             .options(joinedload(Portfolio.holdings).joinedload(Holding.stock))
@@ -35,10 +50,15 @@ class PortfolioRepository:
     def create_portfolio(
         self,
         db: Session,
-        user_id: UUID,
+        user_id: Union[UUID, str],
         name: str,
         initial_cash: float = 10000.0,
     ) -> Portfolio:
+        if isinstance(user_id, str):
+            try:
+                user_id = UUID(user_id)
+            except (ValueError, TypeError):
+                pass
         portfolio = Portfolio(
             user_id=user_id,
             name=name.strip(),
@@ -68,9 +88,14 @@ class PortfolioRepository:
     def get_holding(
         self,
         db: Session,
-        portfolio_id: UUID,
+        portfolio_id: Union[UUID, str],
         ticker: str,
     ) -> Optional[Holding]:
+        if isinstance(portfolio_id, str):
+            try:
+                portfolio_id = UUID(portfolio_id)
+            except (ValueError, TypeError):
+                return None
         return (
             db.query(Holding)
             .filter(
@@ -83,11 +108,16 @@ class PortfolioRepository:
     def create_holding(
         self,
         db: Session,
-        portfolio_id: UUID,
+        portfolio_id: Union[UUID, str],
         ticker: str,
         shares: float,
         average_price: float,
     ) -> Holding:
+        if isinstance(portfolio_id, str):
+            try:
+                portfolio_id = UUID(portfolio_id)
+            except (ValueError, TypeError):
+                pass
         holding = Holding(
             portfolio_id=portfolio_id,
             ticker=ticker.upper().strip(),

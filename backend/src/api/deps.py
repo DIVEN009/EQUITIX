@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -29,12 +30,30 @@ def get_current_user(
     if payload is None:
         raise credentials_exception
 
-    user_id: str = payload.get("sub")
-    if user_id is None:
+    user_id_raw: str = payload.get("sub")
+    if user_id_raw is None:
         raise credentials_exception
 
-    user = user_repository.get_by_id(db, user_id=user_id)
-    if user is None:
+    try:
+        user_uuid = UUID(user_id_raw) if isinstance(user_id_raw, str) else user_id_raw
+    except (ValueError, TypeError):
         raise credentials_exception
+
+    user = user_repository.get_by_id(db, user_id=user_uuid)
+    if user is None:
+        # If SQLite database was freshly initialized/switched, restore the user from valid JWT
+        email = payload.get("email") or "trader@equitix.com"
+        first_name = payload.get("first_name", "Equitix")
+        last_name = payload.get("last_name", "Trader")
+        user = User(
+            id=user_uuid,
+            email=email,
+            password_hash="restored_session",
+            first_name=first_name,
+            last_name=last_name,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
     return user

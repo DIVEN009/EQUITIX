@@ -202,7 +202,6 @@ class PredictionEngine:
                     ticker=ticker_clean,
                     company_name=ticker_clean,
                     sector="Equities",
-                    currency="INR" if ticker_clean.endswith((".NS", ".BO")) else "USD",
                 )
                 db.add(stock)
                 db.flush()

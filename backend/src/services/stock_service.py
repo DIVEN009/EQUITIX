@@ -320,8 +320,13 @@ class StockService:
         and schedules an asynchronous background update.
         """
         ticker_clean = self.resolve_canonical_ticker(ticker, db=db)
-        existing_stock = self.repo.get_stock(db, ticker_clean)
-        latest_price_rec = self.repo.get_latest_daily_price(db, ticker_clean)
+        try:
+            existing_stock = self.repo.get_stock(db, ticker_clean)
+            latest_price_rec = self.repo.get_latest_daily_price(db, ticker_clean)
+        except Exception as exc:
+            logger.warning(f"DB lookup failed for {ticker_clean}: {exc}")
+            existing_stock = None
+            latest_price_rec = None
         native_currency = "INR" if (ticker_clean.endswith(".NS") or ticker_clean.endswith(".BO")) else "USD"
 
         # 1. Attempt live yfinance with 5.0s timeout
@@ -329,14 +334,20 @@ class StockService:
 
         if yf_data:
             # yfinance returned in time: persist and return live data
-            stock = self.repo.upsert_stock(
-                db=db,
-                ticker=yf_data["ticker"],
-                company_name=yf_data["company_name"],
-                sector=yf_data["sector"],
-            )
-            if yf_data["price_records"]:
-                self.repo.upsert_daily_prices(db, yf_data["ticker"], yf_data["price_records"])
+            stock_ticker = yf_data["ticker"]
+            stock_name = yf_data["company_name"]
+            stock_sector = yf_data["sector"]
+            try:
+                stock = self.repo.upsert_stock(
+                    db=db,
+                    ticker=stock_ticker,
+                    company_name=stock_name,
+                    sector=stock_sector,
+                )
+                if yf_data["price_records"]:
+                    self.repo.upsert_daily_prices(db, yf_data["ticker"], yf_data["price_records"])
+            except Exception as exc:
+                logger.warning(f"Could not persist stock quote to DB for {stock_ticker}: {exc}")
 
             current_price = yf_data["current_price"]
             previous_close = yf_data["previous_close"]
@@ -346,12 +357,12 @@ class StockService:
             latest_trading_date = yf_data["price_records"][-1]["date"] if yf_data["price_records"] else date.today()
 
             exchange_str = yf_data.get("exchange") or ("NSE" if ticker_clean.endswith(".NS") else ("BSE" if ticker_clean.endswith(".BO") else "US"))
-            m_status = market_schedule_service.get_market_status(ticker=stock.ticker, exchange=exchange_str)
+            m_status = market_schedule_service.get_market_status(ticker=stock_ticker, exchange=exchange_str)
 
             return StockSummaryResponse(
-                ticker=stock.ticker,
-                company_name=stock.company_name,
-                sector=stock.sector,
+                ticker=stock_ticker,
+                company_name=stock_name,
+                sector=stock_sector,
                 exchange=exchange_str,
                 currency=yf_data.get("currency") or native_currency,
                 current_price=current_price,
@@ -441,7 +452,11 @@ class StockService:
         and triggers a background refresh.
         """
         ticker_clean = self.resolve_canonical_ticker(ticker, db=db)
-        existing_stock = self.repo.get_stock(db, ticker_clean)
+        try:
+            existing_stock = self.repo.get_stock(db, ticker_clean)
+        except Exception as exc:
+            logger.warning(f"DB lookup failed for {ticker_clean}: {exc}")
+            existing_stock = None
         native_currency = "INR" if (ticker_clean.endswith(".NS") or ticker_clean.endswith(".BO")) else "USD"
 
         # 1-Day Intraday analysis: always stream 5-minute intraday ticks
@@ -451,15 +466,21 @@ class StockService:
                 yf_data = await self.fetch_with_timeout(ticker_clean, days=1, timeout=8.0)
 
             if yf_data and yf_data.get("price_records"):
-                stock = self.repo.upsert_stock(
-                    db=db,
-                    ticker=yf_data["ticker"],
-                    company_name=yf_data["company_name"],
-                    sector=yf_data["sector"],
-                )
+                stock_ticker = yf_data["ticker"]
+                stock_name = yf_data["company_name"]
+                try:
+                    self.repo.upsert_stock(
+                        db=db,
+                        ticker=stock_ticker,
+                        company_name=stock_name,
+                        sector=yf_data["sector"],
+                    )
+                except Exception as exc:
+                    logger.warning(f"Could not persist stock to DB for {stock_ticker}: {exc}")
+
                 return StockHistoryResponse(
-                    ticker=stock.ticker,
-                    company_name=stock.company_name,
+                    ticker=stock_ticker,
+                    company_name=stock_name,
                     currency=yf_data.get("currency") or native_currency,
                     count=len(yf_data["price_records"]),
                     source="live_intraday",
@@ -620,7 +641,11 @@ class StockService:
         dynamically synthesizes fresh 7-day walk-forward predictions and persists to DB.
         """
         ticker_clean = self.resolve_canonical_ticker(ticker, db)
-        predictions = self.repo.get_predictions(db, ticker_clean)
+        try:
+            predictions = self.repo.get_predictions(db, ticker_clean)
+        except Exception as exc:
+            logger.warning(f"Could not load predictions from DB for {ticker_clean}: {exc}")
+            predictions = []
 
         today = date.today()
         upcoming = [p for p in predictions if p.target_date >= today]

@@ -19,10 +19,12 @@ const queryClient = new QueryClient({
   },
 });
 
+import { SettingsModal } from "./components/SettingsModal";
 import { useSettingsStore } from "./store/settingsStore";
 
 function MainApp() {
   const { isAuthenticated, activeTab } = useAuthStore();
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
   React.useEffect(() => {
     useSettingsStore.getState().fetchLiveForexRates();
@@ -33,31 +35,15 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-bg text-brand-textPrimary flex flex-col selection:bg-brand-emerald selection:text-brand-bg relative overflow-x-hidden">
-      {/* Dynamic Cinematic Video Background */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        onTimeUpdate={(e) => {
-          if (e.target.currentTime >= 7.2) {
-            e.target.currentTime = 0;
-          }
-        }}
-        className="fixed inset-0 w-full h-full object-cover opacity-55 pointer-events-none -z-20 filter brightness-110 contrast-105"
-      >
-        <source src="/background-video.mp4" type="video/mp4" />
-      </video>
+    <div className="min-h-screen bg-brand-bg text-brand-textPrimary flex flex-col selection:bg-brand-emerald selection:text-white relative overflow-x-hidden transition-colors">
+      {/* Subtle Institutional Quant Grid */}
+      <div className="fixed inset-0 quant-grid-bg pointer-events-none -z-20" />
 
-      {/* Subtle Atmospheric Overlay & Quant Grid */}
-      <div className="fixed inset-0 bg-[#0A0E17]/50 pointer-events-none -z-10 quant-grid-bg" />
+      {/* Atmospheric Spatial Depth Glows (Antigravity Design) */}
+      <div className="fixed -top-40 left-1/3 w-[700px] h-[500px] bg-brand-emerald/10 dark:bg-brand-emerald/12 rounded-full blur-[150px] pointer-events-none -z-10 animate-pulse-slow" />
+      <div className="fixed bottom-0 right-10 w-[600px] h-[450px] bg-brand-cyan/8 dark:bg-brand-cyan/10 rounded-full blur-[160px] pointer-events-none -z-10" />
 
-      {/* Ambient atmospheric lighting */}
-      <div className="fixed top-0 left-1/4 w-[600px] h-[350px] bg-brand-emerald/15 rounded-full blur-[140px] pointer-events-none -z-10" />
-      <div className="fixed bottom-10 right-10 w-[500px] h-[400px] bg-brand-cyan/15 rounded-full blur-[140px] pointer-events-none -z-10" />
-
-      <Header />
+      <Header onOpenSettings={() => setIsSettingsOpen(true)} />
       <main className="flex-1 relative z-10">
         {activeTab === "dashboard" && <DashboardPage />}
         {activeTab === "market" && <MarketExplorerPage />}
@@ -65,6 +51,10 @@ function MainApp() {
       </main>
       <Navigation />
       <ToastContainer />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }

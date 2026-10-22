@@ -19,6 +19,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useCurrency, getStockNativeCurrency } from "../utils/currency";
+import { useSettingsStore } from "../store/settingsStore";
 
 /**
  * Format raw numbers into compact readable volumes (e.g. 42.5M, 1.2B)
@@ -83,8 +84,8 @@ const CustomTooltip = ({ active, payload, is1D = false, previousClose = null }) 
     const changePct = refPrice ? (change / refPrice) * 100 : 0;
 
     return (
-      <div className="bg-brand-surface/95 backdrop-blur-md border border-white/10 rounded-2xl p-3.5 shadow-2xl text-xs space-y-2.5 min-w-[210px] pointer-events-none">
-        <div className="flex items-center justify-between border-b border-white/10 pb-2">
+      <div className="bg-brand-surface/95 backdrop-blur-md border border-brand-border rounded-2xl p-3.5 shadow-2xl text-xs space-y-2.5 min-w-[210px] pointer-events-none text-brand-textPrimary">
+        <div className="flex items-center justify-between border-b border-brand-border pb-2">
           <span className="text-brand-textMuted text-[11px] font-medium">
             {formatDate(data.date, is1D)}
           </span>
@@ -103,7 +104,7 @@ const CustomTooltip = ({ active, payload, is1D = false, previousClose = null }) 
           <div className="text-[10px] text-brand-textMuted uppercase font-semibold tracking-wider">
             {data.isSessionOpenAnchor ? "Session Open Tick" : "Price"}
           </div>
-          <div className="text-lg font-black text-white">
+          <div className="text-lg font-black text-brand-textPrimary">
             {formatRaw(data.close)}
           </div>
           <div
@@ -125,10 +126,10 @@ const CustomTooltip = ({ active, payload, is1D = false, previousClose = null }) 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] pt-1.5 border-t border-white/5">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] pt-1.5 border-t border-brand-border">
           <div>
             <span className="text-brand-textMuted">Open: </span>
-            <span className="font-semibold text-white">
+            <span className="font-semibold text-brand-textPrimary">
               {formatRaw(data.open)}
             </span>
           </div>
@@ -166,7 +167,8 @@ const CandlestickShape = (props) => {
 
   const { open, close, high, low } = payload;
   const isBullish = close >= open;
-  const color = isBullish ? "#00F59B" : "#EF4444";
+  const isDark = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+  const color = isBullish ? (isDark ? "#00E676" : "#00A854") : (isDark ? "#FF3D00" : "#E53935");
 
   // Linear projection from price to Y coordinate
   const range = yAxisMax - yAxisMin;
@@ -418,7 +420,11 @@ export const StockChart = ({
     };
   }, [data, conversionRate, convertedPrevClose, convertedCurrentPrice, lastRefreshedAt, is1D, chartMode]);
 
-  const themeColor = isPositive ? "#00F59B" : "#EF4444";
+  const { theme } = useSettingsStore();
+  const isDark = theme === "dark";
+  const bullishColor = isDark ? "#00E676" : "#00A854";
+  const bearishColor = isDark ? "#FF3D00" : "#E53935";
+  const themeColor = isPositive ? bullishColor : bearishColor;
   const gradientId = `stockGradient_${ticker}_${isPositive ? "up" : "down"}`;
 
   if (isLoading) {
@@ -525,33 +531,33 @@ export const StockChart = ({
         </div>
 
         {/* View Mode Switcher [Area | Line | Candles] */}
-        <div className="flex items-center gap-1 bg-brand-surface/80 p-0.5 rounded-xl border border-white/5">
+        <div className="flex items-center gap-1 bg-brand-surface p-0.5 rounded-xl border border-brand-border shadow-xs">
           <button
             onClick={() => setChartMode("area")}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
               chartMode === "area"
-                ? "bg-brand-card text-brand-emerald font-bold shadow-sm border border-white/10"
-                : "text-brand-textMuted hover:text-white"
+                ? "bg-brand-card text-brand-emerald font-bold shadow-xs border border-brand-border"
+                : "text-brand-textMuted hover:text-brand-textPrimary"
             }`}
           >
             Area
           </button>
           <button
             onClick={() => setChartMode("line")}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
               chartMode === "line"
-                ? "bg-brand-card text-brand-emerald font-bold shadow-sm border border-white/10"
-                : "text-brand-textMuted hover:text-white"
+                ? "bg-brand-card text-brand-emerald font-bold shadow-xs border border-brand-border"
+                : "text-brand-textMuted hover:text-brand-textPrimary"
             }`}
           >
             Line
           </button>
           <button
             onClick={() => setChartMode("candles")}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors ${
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
               chartMode === "candles"
-                ? "bg-brand-card text-brand-emerald font-bold shadow-sm border border-white/10"
-                : "text-brand-textMuted hover:text-white"
+                ? "bg-brand-card text-brand-emerald font-bold shadow-xs border border-brand-border"
+                : "text-brand-textMuted hover:text-brand-textPrimary"
             }`}
           >
             Candles
@@ -568,7 +574,7 @@ export const StockChart = ({
           >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={themeColor} stopOpacity={0.35} />
+                <stop offset="5%" stopColor={themeColor} stopOpacity={isDark ? 0.35 : 0.22} />
                 <stop offset="95%" stopColor={themeColor} stopOpacity={0.0} />
               </linearGradient>
             </defs>
@@ -576,7 +582,7 @@ export const StockChart = ({
             <CartesianGrid
               strokeDasharray="3 3"
               vertical={false}
-              stroke="rgba(255, 255, 255, 0.05)"
+              stroke={isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(15, 23, 42, 0.06)"}
             />
 
             {/* Previous Close Reference Line (Google Finance / Institutional Benchmark) */}
@@ -604,7 +610,7 @@ export const StockChart = ({
               stroke="#64748B"
               fontSize={10}
               tickLine={false}
-              axisLine={{ stroke: "rgba(255, 255, 255, 0.1)" }}
+              axisLine={{ stroke: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(15, 23, 42, 0.1)" }}
               minTickGap={is1D ? 35 : 25}
             />
 
@@ -635,7 +641,7 @@ export const StockChart = ({
               <Bar
                 yAxisId="volume"
                 dataKey="volume"
-                fill="rgba(255, 255, 255, 0.07)"
+                fill={isDark ? "rgba(255, 255, 255, 0.07)" : "rgba(15, 23, 42, 0.08)"}
                 radius={[2, 2, 0, 0]}
                 maxBarSize={8}
                 isAnimationActive={false}
