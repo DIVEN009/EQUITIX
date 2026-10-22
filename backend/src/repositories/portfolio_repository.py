@@ -1,4 +1,5 @@
-from typing import List, Optional
+from __future__ import annotations
+from typing import List, Optional, Union
 from uuid import UUID
 from sqlalchemy.orm import Session, joinedload
 from src.models.database_models import Portfolio, Holding
