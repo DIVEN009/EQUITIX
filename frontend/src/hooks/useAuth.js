@@ -3,7 +3,15 @@ import { registerApi, loginApi, getMeApi } from "../api/auth";
 import { useAuthStore } from "../store/authStore";
 
 export const useAuth = () => {
-  const { setAuth, clearAuth, isAuthenticated, user, token } = useAuthStore();
+  const {
+    setAuth,
+    setDemoAuth,
+    clearAuth,
+    isAuthenticated,
+    isDemo,
+    user,
+    token,
+  } = useAuthStore();
 
   const registerMutation = useMutation({
     mutationFn: registerApi,
@@ -19,10 +27,11 @@ export const useAuth = () => {
     },
   });
 
+  // Only query backend for profile if authenticated with a real account (demo user is local)
   const userProfileQuery = useQuery({
     queryKey: ["currentUser"],
     queryFn: getMeApi,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !isDemo,
     retry: false,
   });
 
@@ -30,12 +39,14 @@ export const useAuth = () => {
     user,
     token,
     isAuthenticated,
+    isDemo,
     login: loginMutation.mutateAsync,
     isLoggingIn: loginMutation.isPending,
     loginError: loginMutation.error?.response?.data?.detail || loginMutation.error?.message,
     register: registerMutation.mutateAsync,
     isRegistering: registerMutation.isPending,
     registerError: registerMutation.error?.response?.data?.detail || registerMutation.error?.message,
+    loginDemo: setDemoAuth,
     logout: clearAuth,
     isLoadingProfile: userProfileQuery.isLoading,
   };

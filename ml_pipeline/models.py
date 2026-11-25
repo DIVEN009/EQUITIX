@@ -3,7 +3,7 @@ import logging
 from typing import Tuple, Optional, Any
 import numpy as np
 import joblib
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_squared_error
 
 logger = logging.getLogger(__name__)
@@ -42,16 +42,17 @@ def calculate_directional_accuracy(
     return round(accuracy_percentage, 2)
 
 
-# --- 1. BASELINE MODEL: LINEAR REGRESSION ---
+# --- 1. BASELINE MODEL: L2-REGULARIZED RIDGE REGRESSION ---
 
 class BaselineLinearRegressionModel:
     """
-    Interpretable baseline model using multi-output Linear Regression over the
-    flattened 60-day feature window to predict the 7-day horizon.
+    Interpretable baseline model using multi-output L2-regularized Ridge Regression
+    over the flattened 60-day feature window to predict the 7-day horizon without
+    overfitting high-dimensional collinear features.
     """
 
-    def __init__(self):
-        self.model = LinearRegression()
+    def __init__(self, alpha: float = 15.0):
+        self.model = Ridge(alpha=alpha)
         self.is_trained = False
 
     def _flatten_input(self, X: np.ndarray) -> np.ndarray:
@@ -101,19 +102,21 @@ def build_lstm_model(
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import Input, LSTM, Dense, Dropout
     from tensorflow.keras.optimizers import Adam
+    from tensorflow.keras.losses import Huber
 
     model = Sequential([
         Input(shape=(lookback, num_features)),
-        LSTM(50, return_sequences=True),
+        LSTM(64, return_sequences=True),
+        Dropout(0.25),
+        LSTM(32, return_sequences=False),
         Dropout(0.2),
-        LSTM(50, return_sequences=False),
-        Dropout(0.2),
+        Dense(16, activation="tanh"),
         Dense(horizon),
     ])
 
     model.compile(
-        optimizer=Adam(learning_rate=learning_rate),
-        loss="mse",
+        optimizer=Adam(learning_rate=learning_rate, clipnorm=1.0),
+        loss=Huber(delta=0.03),
         metrics=["mae"],
     )
     return model

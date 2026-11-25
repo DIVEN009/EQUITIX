@@ -112,11 +112,12 @@ def train_and_evaluate_ticker(
     logger.info(f"Training Primary LSTM Model for {ticker_clean} ({epochs} epochs)...")
     lstm_model = build_lstm_model(lookback=LOOKBACK, num_features=len(FEATURE_COLUMNS), horizon=HORIZON)
 
-    from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+    from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
     lstm_keras_path = os.path.join(SAVED_MODELS_DIR, f"{ticker_clean}_lstm.keras")
 
     callbacks = [
-        EarlyStopping(monitor="val_loss", patience=4, restore_best_weights=True, verbose=1),
+        EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True, verbose=1),
+        ReduceLROnPlateau(monitor="val_loss", factor=0.5, patience=2, min_lr=1e-5, verbose=1),
         ModelCheckpoint(lstm_keras_path, monitor="val_loss", save_best_only=True, verbose=0),
     ]
 
