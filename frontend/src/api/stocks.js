@@ -51,10 +51,13 @@ export const resolveStockApi = async (query) => {
 /**
  * Fetch ML forecast predictions for the ticker (LSTM & Linear Regression).
  * @param {string} ticker - e.g. "AAPL"
+ * @param {boolean} [refresh=false] - Force fresh walk-forward inference
  */
-export const fetchStockPredictionsApi = async (ticker) => {
+export const fetchStockPredictionsApi = async (ticker, refresh = false) => {
   if (!ticker) throw new Error("Ticker is required");
-  const response = await apiClient.get(`/stocks/${ticker.toUpperCase()}/predictions`);
+  const response = await apiClient.get(`/stocks/${ticker.toUpperCase()}/predictions`, {
+    params: refresh ? { refresh: true } : undefined,
+  });
   return response.data;
 };
 

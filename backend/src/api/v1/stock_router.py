@@ -142,13 +142,14 @@ async def get_stock_history(
     response_model=StockPredictionsResponse,
     status_code=status.HTTP_200_OK,
     summary="Get stock ML forecasts",
-    description="Retrieve offline-generated 7-day forecasts produced by LSTM and baseline regression models.",
+    description="Retrieve 7-day forecasts produced by walk-forward neural ensemble and baseline Ridge regression models.",
 )
 def get_stock_predictions(
     ticker: str,
+    refresh: bool = Query(False, description="Force fresh walk-forward ML prediction regeneration"),
     db: Session = Depends(get_db),
 ) -> StockPredictionsResponse:
-    return stock_service.get_stock_predictions(ticker=ticker, db=db)
+    return stock_service.get_stock_predictions(ticker=ticker, db=db, refresh=refresh)
 
 
 @router.get(

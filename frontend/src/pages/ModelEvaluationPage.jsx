@@ -7,6 +7,8 @@ import {
   Sliders,
   RefreshCw,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { fetchStockPredictionsApi } from "../api/stocks";
 import { useAuthStore } from "../store/authStore";
 import {
   useStockQuote,
@@ -29,9 +31,11 @@ const POPULAR_TICKERS = [
 ];
 
 export const ModelEvaluationPage = () => {
+  const queryClient = useQueryClient();
   const { formatStock } = useCurrency();
   const { selectedTicker, setSelectedTicker } = useAuthStore();
   const [activeModel, setActiveModel] = useState("all"); // "all" | "lstm" | "linear"
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch real-time market quote
   const { data: quote } = useStockQuote(selectedTicker);
@@ -44,11 +48,11 @@ export const ModelEvaluationPage = () => {
   const {
     data: predictionsResponse,
     isLoading: isLoadingPreds,
-    refetch: refetchPreds,
+    isFetching: isFetchingPreds,
   } = useStockPredictions(selectedTicker);
 
   // Fetch validation benchmarks
-  const { data: benchmarksData } = useStockBenchmarks(selectedTicker);
+  const { data: benchmarksData, refetch: refetchBenchmarks } = useStockBenchmarks(selectedTicker);
 
   // Derive today's reference price
   const currentPrice =
@@ -118,9 +122,25 @@ export const ModelEvaluationPage = () => {
     weights_file: `${selectedTicker}_baseline.pkl`,
   };
 
-  // Determine divergence insight
+  // Determine two-sided forecast divergence insight
   const lastStep = forecastTable[forecastTable.length - 1];
-  const isLstmMoreBullish = lastStep ? (lastStep.lstmPrice || 0) > (lastStep.basePrice || 0) : true;
+  const lstmPct = lastStep?.lstmChangePct ?? 0;
+  const basePct = lastStep?.baseChangePct ?? 0;
+  const isBothBullish = lstmPct > 0.15 && basePct > 0.15;
+  const isBothBearish = lstmPct < -0.15 && basePct < -0.15;
+  const isDivergent = (lstmPct >= 0 && basePct < 0) || (lstmPct < 0 && basePct >= 0);
+
+  const handleForceRefresh = async () => {
+    if (!selectedTicker || isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      const fresh = await fetchStockPredictionsApi(selectedTicker, true);
+      queryClient.setQueryData(["stockPredictions", selectedTicker.toUpperCase().trim()], fresh);
+      await Promise.all([refetchHistory(), refetchBenchmarks()]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-8 space-y-6">
@@ -181,15 +201,13 @@ export const ModelEvaluationPage = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => {
-                    refetchHistory();
-                    refetchPreds();
-                  }}
-                  className="px-2.5 py-0.5 rounded-full bg-brand-surface hover:bg-brand-cardHover text-brand-textSecondary hover:text-brand-textPrimary border border-brand-border text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                  onClick={handleForceRefresh}
+                  disabled={isRefreshing || isFetchingPreds}
+                  className="px-2.5 py-0.5 rounded-full bg-brand-surface hover:bg-brand-cardHover text-brand-textSecondary hover:text-brand-textPrimary border border-brand-border text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
                   title="Re-run walk-forward predictions"
                 >
-                  <RefreshCw className={`w-3 h-3 text-brand-cyan ${isLoadingPreds ? "animate-spin" : ""}`} />
-                  <span>Refresh</span>
+                  <RefreshCw className={`w-3 h-3 text-brand-cyan ${isRefreshing || isFetchingPreds ? "animate-spin" : ""}`} />
+                  <span>{isRefreshing ? "Running..." : "Refresh"}</span>
                 </button>
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-brand-emerald border border-brand-emerald/30 text-[10px] font-bold flex items-center gap-1 self-start sm:self-auto">
                   <CheckCircle2 className="w-3 h-3" />
@@ -293,10 +311,7 @@ export const ModelEvaluationPage = () => {
                 ticker={selectedTicker}
                 activeModel={activeModel}
                 isLoading={isLoadingHistory || isLoadingPreds}
-                onRetry={() => {
-                  refetchHistory();
-                  refetchPreds();
-                }}
+                onRetry={handleForceRefresh}
               />
             </div>
           </div>
@@ -487,13 +502,34 @@ export const ModelEvaluationPage = () => {
                 Quantitative Divergence: {selectedTicker}
               </h4>
               <p className="text-[11px] text-brand-textSecondary leading-relaxed">
-                {isLstmMoreBullish ? (
+                {isBothBullish ? (
                   <>
-                    The TensorFlow LSTM model captures asymmetric upward momentum across {selectedTicker}&apos;s 60-day volume-weighted technical channels. In contrast, the linear regression baseline underweights non-linear acceleration.
+                    Both walk-forward models project upward continuation for {selectedTicker} (Neural{" "}
+                    <span className="font-mono font-bold text-brand-emerald">+{lstmPct.toFixed(2)}%</span> vs. Ridge{" "}
+                    <span className="font-mono font-bold text-brand-cyan">+{basePct.toFixed(2)}%</span> over 7 trading days).
+                  </>
+                ) : isBothBearish ? (
+                  <>
+                    Both models signal short-term pullback / mean-reversion pressure for {selectedTicker} (Neural{" "}
+                    <span className="font-mono font-bold text-brand-red">{lstmPct.toFixed(2)}%</span> vs. Ridge{" "}
+                    <span className="font-mono font-bold text-brand-red">{basePct.toFixed(2)}%</span> over 7 trading days).
+                  </>
+                ) : isDivergent ? (
+                  <>
+                    Models diverge on {selectedTicker}: the non-linear ensemble projects{" "}
+                    <span className={`font-mono font-bold ${lstmPct >= 0 ? "text-brand-emerald" : "text-brand-red"}`}>
+                      {lstmPct >= 0 ? "+" : ""}{lstmPct.toFixed(2)}%
+                    </span>{" "}
+                    while linear Ridge projects{" "}
+                    <span className={`font-mono font-bold ${basePct >= 0 ? "text-brand-cyan" : "text-brand-red"}`}>
+                      {basePct >= 0 ? "+" : ""}{basePct.toFixed(2)}%
+                    </span>, reflecting non-linear mean-reversion vs. linear trend extrapolation.
                   </>
                 ) : (
                   <>
-                    The TensorFlow LSTM model identifies compression patterns in volatility, suggesting consolidation or resistance at current levels, differing from the linear continuation curve.
+                    Both models indicate range-bound consolidation for {selectedTicker} around current levels (Neural{" "}
+                    <span className="font-mono font-bold">{lstmPct >= 0 ? "+" : ""}{lstmPct.toFixed(2)}%</span>, Ridge{" "}
+                    <span className="font-mono font-bold">{basePct >= 0 ? "+" : ""}{basePct.toFixed(2)}%</span>).
                   </>
                 )}
               </p>

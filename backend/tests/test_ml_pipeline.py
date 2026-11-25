@@ -104,3 +104,38 @@ def test_baseline_model_training_and_metrics():
     last_known = np.random.random(50)
     acc = calculate_directional_accuracy(y, preds, last_known)
     assert 0.0 <= acc <= 100.0
+
+
+def test_prediction_engine_walk_forward_two_sided():
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    from src.services.prediction_engine import PredictionEngine
+
+    engine = PredictionEngine()
+    dates = pd.date_range(start="2024-01-01", periods=300, freq="B")
+    rng = np.random.default_rng(7)
+
+    # Mean-reverting oscillating series ending on a sharp spike (expects pullback/two-sided)
+    t = np.arange(300)
+    base = 100.0 + 4.0 * np.sin(t / 6.0) + rng.normal(0, 0.3, size=300)
+    base[-3:] = [105.0, 108.0, 111.0]
+    df_spike = pd.DataFrame(
+        {
+            "Open": base - 0.2,
+            "High": base + 0.5,
+            "Low": base - 0.5,
+            "Close": base,
+            "Volume": np.full(300, 1_000_000.0),
+        },
+        index=[d.date() for d in dates],
+    )
+
+    res = engine._fit_and_evaluate_walk_forward("TEST_SPIKE", df_spike)
+    assert len(res["linear_prices"]) == 7
+    assert len(res["neural_prices"]) == 7
+    # After an extreme spike in a mean-reverting series, models must be capable of predicting downward pullbacks
+    assert min(res["linear_prices"]) < 111.0 or min(res["neural_prices"]) < 111.0
+    assert res["benchmarks"].train_samples > 0
+    assert res["benchmarks"].test_samples > 0
+    for m in res["benchmarks"].models:
+        assert m.rmse > 0
+        assert 0.0 <= m.directional_accuracy_pct <= 100.0

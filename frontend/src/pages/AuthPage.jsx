@@ -38,6 +38,7 @@ export const AuthPage = () => {
   const {
     login,
     register,
+    loginDemo,
     isLoggingIn,
     isRegistering,
     loginError,
@@ -297,23 +298,17 @@ export const AuthPage = () => {
             <button
               type="button"
               disabled={isSubmitting}
-              onClick={async () => {
-                try {
-                  await login({ email: "demo@equitix.com", password: "password123" });
-                } catch {
-                  await register({
-                    email: "demo@equitix.com",
-                    password: "password123",
-                    first_name: "Demo",
-                    last_name: "Trader",
-                  });
-                }
+              onClick={() => {
+                loginDemo();
               }}
-              className="w-full py-3 rounded-2xl text-xs font-bold bg-brand-surface border border-brand-emerald/30 hover:border-brand-emerald text-brand-emerald hover:bg-brand-emerald/10 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              className="w-full py-3.5 rounded-2xl text-xs font-bold bg-brand-surface border border-brand-emerald/30 hover:border-brand-emerald text-brand-emerald hover:bg-brand-emerald/10 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm group active:scale-[0.99]"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-4 h-4 text-brand-emerald group-hover:rotate-12 transition-transform" />
               <span>Instant Demo Account (1-Click)</span>
             </button>
+            <p className="text-[11px] text-center text-brand-textMuted -mt-1 font-medium">
+              ⚡ Ephemeral guest session • No registration • Resets automatically on tab close
+            </p>
           </form>
 
           {/* Toggle Login / Register */}

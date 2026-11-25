@@ -635,17 +635,22 @@ class StockService:
             data=[DailyPriceItem(**r) for r in fallback_data["price_records"]],
         )
 
-    def get_stock_predictions(self, ticker: str, db: Session) -> StockPredictionsResponse:
+    def get_stock_predictions(
+        self, ticker: str, db: Session, refresh: bool = False
+    ) -> StockPredictionsResponse:
         """
-        Retrieve ML predictions for a ticker. If absent, stale, or incomplete,
-        dynamically synthesizes fresh 7-day walk-forward predictions and persists to DB.
+        Retrieve ML predictions for a ticker. If absent, stale, incomplete,
+        or refresh=True, synthesizes fresh 7-day walk-forward predictions and persists to DB.
         """
+        from datetime import datetime, timezone
         ticker_clean = self.resolve_canonical_ticker(ticker, db)
-        try:
-            predictions = self.repo.get_predictions(db, ticker_clean)
-        except Exception as exc:
-            logger.warning(f"Could not load predictions from DB for {ticker_clean}: {exc}")
-            predictions = []
+        predictions = []
+        if not refresh:
+            try:
+                predictions = self.repo.get_predictions(db, ticker_clean)
+            except Exception as exc:
+                logger.warning(f"Could not load predictions from DB for {ticker_clean}: {exc}")
+                predictions = []
 
         today = date.today()
         upcoming = [p for p in predictions if p.target_date >= today]
@@ -653,8 +658,22 @@ class StockService:
         lstm_count = sum(1 for p in upcoming if "lstm" in p.model_name.lower())
         base_count = sum(1 for p in upcoming if "linear" in p.model_name.lower() or "base" in p.model_name.lower())
 
-        if lstm_count < 5 or base_count < 5:
-            logger.info(f"Predictions for {ticker_clean} are missing or stale (LSTM: {lstm_count}, Base: {base_count}). Generating fresh predictions...")
+        # Regenerate if missing, incomplete, generated before engine upgrade, or older than 12 hours
+        engine_upgrade_cutoff = datetime(2026, 11, 25, 6, 30, 0, tzinfo=timezone.utc)
+        is_stale = True
+        if upcoming and not refresh:
+            latest_gen = max((p.generated_at for p in upcoming if p.generated_at), default=None)
+            if latest_gen:
+                if latest_gen.tzinfo is None:
+                    latest_gen = latest_gen.replace(tzinfo=timezone.utc)
+                age_seconds = (datetime.now(timezone.utc) - latest_gen).total_seconds()
+                is_stale = latest_gen < engine_upgrade_cutoff or age_seconds > 43200  # 12 hours
+
+        if refresh or is_stale or lstm_count < 5 or base_count < 5:
+            logger.info(
+                f"Generating fresh walk-forward predictions for {ticker_clean} "
+                f"(refresh={refresh}, stale={is_stale}, LSTM={lstm_count}, Base={base_count})..."
+            )
             try:
                 fresh_preds = prediction_engine.generate_predictions_for_ticker(ticker_clean, db)
                 if fresh_preds:
@@ -678,10 +697,19 @@ class StockService:
 
     def get_stock_benchmarks(self, ticker: str, db: Optional[Session] = None) -> StockBenchmarksResponse:
         """
-        Retrieve validation benchmarks (RMSE, Directional Accuracy, samples)
-        from model training artifacts, or dynamically compute asset-calibrated benchmarks.
+        Retrieve real out-of-sample walk-forward validation benchmarks (RMSE, Directional Accuracy, samples)
+        evaluated on the ticker's chronological test split, with saved/calibrated fallback.
         """
         ticker_clean = self.resolve_canonical_ticker(ticker, db)
+
+        # 1. Prefer real walk-forward out-of-sample benchmarks computed on the ticker's history
+        try:
+            real_benchmarks = prediction_engine.get_real_benchmarks(ticker_clean, db=db)
+            if real_benchmarks:
+                return real_benchmarks
+        except Exception as exc:
+            logger.warning(f"Real walk-forward benchmark evaluation failed for {ticker_clean}: {exc}")
+
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
         benchmarks_path = os.path.join(project_root, "ml_pipeline", "saved_models", "benchmarks.json")
